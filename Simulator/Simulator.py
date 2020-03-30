@@ -2,6 +2,7 @@ import math
 import random
 import os, sys, csv
 import ps11_visualize
+from pylab import plot, axis, title, ylabel, xlabel, show
 
 class Position(object):
     """
@@ -366,7 +367,6 @@ def showPlot2():
     How long does it take to clean 75% of a 25x25 room with each of 1-10 robots? Output a figure that plots the mean time (on the Y-axis) against the number of robots.
 
     """
-    # TODO: Your code goes here
     listOfMeanTimes = []
     for each in range(1, 11):
         trialsCollection = runSimulation(each, 1.0, 25, 25, 0.75, 25, Robot, False)
@@ -381,7 +381,6 @@ def showPlot3():
     Produces a plot showing dependence of cleaning time on room shape.
     How long does it take two robots to clean 75% of rooms with dimensions 20x20, 25x16, 40x10, 50x8, 80x5, and 100x4? (Notice that the rooms have the same area.) Output a figure that plots the mean time (on the Y-axis) against the ratio of width to height.
     """
-    # TODO: Your code goes here
     room_size = [(20, 20), (25, 16), (40, 10), (50, 8), (80, 5), (100, 4)]
     listOfMeanTimes = []
     for each in room_size:
@@ -413,7 +412,7 @@ def showPlot4():
 
 
 
-class RandomWalkRobot(BaseRobot):
+class RandomWalkRobot(BaseShip):
     """
     A RandomWalkRobot is a robot with the "random walk" movement
     strategy: it chooses a new direction at random after each
@@ -445,14 +444,6 @@ class RandomWalkRobot(BaseRobot):
             else:  # pick a new direction at random
                 self.robotDirection = random.randint(0, 360)
 
-
-# === Problem 6
-
-def showPlot5():
-    """
-    Produces a plot comparing the two robot strategies.
-    """
-    # TODO: Your code goes here
 
 
 def write_lists_csv(block_list, file_name, headers):

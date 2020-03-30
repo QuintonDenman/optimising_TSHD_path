@@ -6,7 +6,7 @@
 import math
 import time
 
-from Tkinter import *
+from tkinter import *
 
 class RobotVisualization:
     def __init__(self, num_robots, width, height, delay = 0.2):
@@ -109,7 +109,7 @@ class RobotVisualization:
             25, 0, anchor=NW,
             text=self._status_string(self.time, room.getNumCleanedTiles()))
         self.master.update()
-        time.sleep(self.delay)
+        self.time.sleep(self.delay)
 
     def done(self):
         "Indicate that the animation is done so that we allow the user to close the window."
