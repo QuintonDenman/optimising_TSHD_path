@@ -1,8 +1,12 @@
 import math
 import random
 import os, sys, csv
-import ps11_visualize
+import Sim.ps11_visualize
+import Sim.Astar
 from pylab import plot, axis, title, ylabel, xlabel, show
+
+from Sim.Astar import astar
+from Sim import ps11_visualize
 
 class Position(object):
     """
@@ -53,7 +57,7 @@ class RectangularRoom(object):
     tiles.
 
     A room has a width and a height and contains (width * height) tiles. At any
-    particular time, each of these tiles is either clean or dirty.
+    particular time1, each of these tiles is either clean or dirty.
     """
 
     def __init__(self, width, height):
@@ -66,12 +70,28 @@ class RectangularRoom(object):
         """
         self.roomWidth = width
         self.roomHeight = height
+        self.dredgeAreaHeight = int(height/2)
+        self.dredgeAreaWidth = int(width/2)
+        self.dredgeArea = []
         self.cleanTiles = {}  # a dictionary of Position objects
+        self.resultantEnvForce = 2
+        self.dumpLoc = (width, height)
 
-    def cleanTileAtPosition(self, pos):
+    def createDredgingLocations(self):
+        """"
+        Creates a basic rectangular dredging area based on the size of the two variables:
+         dredgeAreaWidth & dredgeAreaHeight
+        """
+        for m in range(self.dredgeAreaWidth):
+            for n in range(self.dredgeAreaHeight):
+                self.dredgeArea.append((m, n))
+        # print(f'dredgeArea={self.dredgeArea}')
+
+    def dredgeTileAtPosition(self, pos):
         """
         Mark the tile under the position POS as cleaned.
         Assumes that POS represents a valid position inside this room.
+        Assumes hold is not full
 
         pos: a Position
         """
@@ -91,7 +111,23 @@ class RectangularRoom(object):
         """
         questionedPosition = (int(m), int(n))
         if questionedPosition in self.cleanTiles:
-            print(questionedPosition)
+            return True
+        return False
+
+    def isTileDredgable(self, pos):
+        """
+        Return True if the tile (m, n) is within the dredging area.
+
+        Assumes that (m, n) represents a valid tile inside the room.
+        Assumes that the list dredgeArea has been populated
+
+        m: an integer
+        n: an integer
+        returns: True if (m, n) is within the dredging area , False otherwise
+        """
+        questionedPosition = (int(pos.getX()), int(pos.getY()))
+        if questionedPosition in self.dredgeArea:
+
             return True
         return False
 
@@ -139,6 +175,19 @@ class RectangularRoom(object):
         if pos.getY() >= self.roomHeight: return False
         return True
 
+    def isPositionInDredgingArea(self, pos):
+        """
+        Return True if POS is inside the dredging area.
+
+        pos: a Position object.
+        returns: True if POS is in the dredging area, False otherwise.
+        """
+        if pos.getX() < 0: return False #Uneccessary if you assume dredging area is in the room
+        if pos.getY() < self.dredgeAreaHeight: return False
+
+        if pos.getX() >= self.dredgeAreaWidth: return False
+        if pos.getY() >= self.dredgeAreaHeight: return False #Uneccessary if you assume dredging area is in the room
+
 class BaseShip(object):
     """
     Represents a robot cleaning a particular room.
@@ -148,10 +197,10 @@ class BaseShip(object):
 
     Subclasses of BaseRobot should provide movement strategies by
     implementing updatePositionAndClean(), which simulates a single
-    time-step.
+    time1-step.
     """
 
-    def __init__(self, room, speed):
+    def __init__(self, room, speed, dredgeArea):
         """
         Initializes a Robot with the given speed in the specified
         room. The robot initially has a random direction d and a
@@ -166,10 +215,15 @@ class BaseShip(object):
         speed: a float (speed > 0)
         """
         self.robotSpeed = speed
-        self.robotDirection = 0 #random.randint(0, 360)
-        self.robotPosition = room.getRandomPosition()
-        # print self.robotPosition.getX(), self.robotPosition.getY()
         self.robotRoom = room
+        self.robotDirection = random.randint(0, 360)
+        self.robotPosition = Position(self.robotRoom.roomWidth, self.robotRoom.roomHeight)
+        self.holdCapacity = 8 #how much dirt the ship can hold
+        self.hold = 0
+        self.path = []
+        self.isPathPlanned = False
+        self.environmentForce = 1
+        self.environmentForceDirection = 0
 
     def getRobotPosition(self):
         """
@@ -206,21 +260,32 @@ class BaseShip(object):
         """
         self.robotDirection = direction
 
+    def isHoldFull(self, hold):
+        """
+        return True if hold is less than max capacity
+        return False if hold has reached max capacity
+        hold: amount of dirt ship has collected
+
+        """
+        if hold == self.holdCapacity:
+            return True
+        return False
+
 
 class Robot(BaseShip):
     """
     A Robot is a BaseRobot with the standard movement strategy.
 
-    At each time-step, a Robot attempts to move in its current
+    At each time1-step, a Robot attempts to move in its current
     direction; when it hits a wall, it chooses a new direction
     randomly.
     """
 
     def updatePositionAndClean(self):
         """
-        Simulate the passage of a single time-step.
+        Simulate the passage of a single time1-step.
 
-        Move the robot to a new position and mark the tile it is on as having
+        Move the robot to a new position and if tile is in the dredgable zone mark the tile as having
         been cleaned.
         """
 
@@ -234,7 +299,54 @@ class Robot(BaseShip):
             if self.robotRoom.isPositionInRoom(nextPosition):
                 self.robotPosition = nextPosition
                 # tell room this tile is clean
-                self.robotRoom.cleanTileAtPosition(self.robotPosition)
+                if self.robotRoom.isTileDredgable(self.robotPosition) and not self.robotRoom.isTileCleaned(self.robotPosition.getX(), self.robotPosition.getY()):
+                    self.robotRoom.dredgeTileAtPosition(self.robotPosition)
+                notAtWall = False
+            else:  # pick a new direction at random
+                self.robotDirection = random.randint(0, 360)
+
+
+class RandomAstarShip(BaseShip):
+    """
+        A Robot is a BaseRobot with the standard movement strategy.
+
+        At each time1-step, a Robot attempts to move in its current
+        direction; when it hits a wall, it chooses a new direction
+        randomly.
+        """
+
+    def updatePositionAndClean(self):
+        """
+        Simulate the passage of a single time1-step.
+
+        Move the robot to a new position and if tile is in the dredgable zone mark the tile as having
+        been cleaned.
+        """
+
+        notAtWall = True
+        if self.isHoldFull(self.hold):
+            currentPosition = self.getRobotPosition()
+            # calculate new direction by using current location and target tile
+            goalX, goalY = self.path[-1]
+            newDirection = math.degrees(math.atan2(goalX-currentPosition.getX(), goalY-currentPosition.getY()))
+            #TODO: implement ship dynamics instead of a point turn, direction would then be final loc
+            newPosition = currentPosition.getNewPosition(newDirection, self.robotSpeed)
+            self.robotPosition = newPosition
+            if (int(self.getRobotPosition().getX()), int(self.getRobotPosition().getY())) == self.path[-1]:
+                self.hold = 0
+            else:
+                notAtWall = False
+
+        while notAtWall:
+            currentPosition = self.getRobotPosition()
+            nextPosition = currentPosition.getNewPosition(self.getRobotDirection(), self.robotSpeed)
+            if self.robotRoom.isPositionInRoom(nextPosition):
+                self.robotPosition = nextPosition
+                # tell room this tile is clean
+                if self.robotRoom.isTileDredgable(self.robotPosition) and not self.robotRoom.isTileCleaned(
+                        self.robotPosition.getX(), self.robotPosition.getY()) and not self.isHoldFull(self.hold):
+                    self.robotRoom.dredgeTileAtPosition(self.robotPosition)
+                    self.hold += 1
                 notAtWall = False
             else:  # pick a new direction at random
                 self.robotDirection = random.randint(0, 360)
@@ -270,30 +382,36 @@ def runSimulation(num_robots, speed, width, height, min_coverage, num_trials, ro
     trialsCollection = []  # list to hold lists of date from each trial
     for m in range(num_trials):  # for each trial
         # print "Trial %i:" % m,
-        if visualize: anim = ps11_visualize.RobotVisualization(num_robots, width, height, .02)
+        if visualize: anim = ps11_visualize.RobotVisualization(num_robots, width, height, int(width/2), int(height/2), .02)
         # create the room
         testRoom = RectangularRoom(width, height)
-
+        testRoom.createDredgingLocations()
         # create robots and put them in a list
         robotList = []
         for i in range(num_robots):
-            robotList.append(robot_type(testRoom, speed))
+            robotList.append(robot_type(testRoom, speed, testRoom.dredgeArea))
 
         # initialize for this trial
         percentClean = 0.0000000
         progressList = []
-
         while percentClean < min_coverage:  # clean until percent clean >= min coverage
             if visualize: anim.update(testRoom, robotList)
-            for eachRobot in robotList:  # for each time-step make each robot clean
+            for eachRobot in robotList:  # for each time1-step make each robot clean
+                if eachRobot.isPathPlanned == False and eachRobot.isHoldFull(eachRobot.hold):
+                    pos = eachRobot.getRobotPosition()
+                    eachRobot.path = astar(testRoom.roomWidth, testRoom.roomHeight, (int(pos.getX()), int(pos.getY())),
+                                                                                         testRoom.dumpLoc)
+                    eachRobot.isPathPlanned = True
                 eachRobot.updatePositionAndClean()
+                if eachRobot.hold == 0: #terrible do this with more finesse
+                    eachRobot.isPathPlanned = False
             percentClean = float(testRoom.getNumCleanedTiles()) / float(testRoom.getNumTiles())
             progressList.append(percentClean)
         if visualize: anim.done()
         trialsCollection.append(progressList)
 
         # print "%i robot(s) took %i clock-ticks to clean %i %% of a %ix%i room." %(num_robots, len(progressList), int(min_coverage * 100), width, height)
-    averageOfTrials = calcAvgLengthList(trialsCollection)
+    # averageOfTrials = calcAvgLengthList(trialsCollection)
     # print "On average, the %i robot(s) took %i clock ticks to %f clean a %i x %i room." %(num_robots, int(averageOfTrials), min_coverage, width, height)
     return trialsCollection
 
@@ -341,12 +459,12 @@ def calcAvgLengthList(listOfLists):
 
 def showPlot1():
     """
-    Produces a plot showing dependence of cleaning time on room size.
+    Produces a plot showing dependence of cleaning time1 on room size.
 
-    How long does it take a single robot to clean 75% of each of the following types of rooms: 5x5, 10x10, 15x15, 20x20, 25x25? Output a figure that plots the mean time (on the Y-axis) against the area of the room.
+    How long does it take a single robot to clean 75% of each of the following types of rooms: 5x5, 10x10, 15x15, 20x20, 25x25? Output a figure that plots the mean time1 (on the Y-axis) against the area of the room.
     """
     print
-    """How long does it take a single robot to clean 75% of each of the following types of rooms: 5x5, 10x10, 15x15, 20x20, 25x25? Output a figure that plots the mean time (on the Y-axis) against the area of the room."""
+    """How long does it take a single robot to clean 75% of each of the following types of rooms: 5x5, 10x10, 15x15, 20x20, 25x25? Output a figure that plots the mean time1 (on the Y-axis) against the area of the room."""
 
     square_size = [5, 10, 15, 20, 25]
     listOfMeanTimes = []
@@ -362,9 +480,9 @@ def showPlot1():
 
 def showPlot2():
     """
-    Produces a plot showing dependence of cleaning time on number of robots.
+    Produces a plot showing dependence of cleaning time1 on number of robots.
 
-    How long does it take to clean 75% of a 25x25 room with each of 1-10 robots? Output a figure that plots the mean time (on the Y-axis) against the number of robots.
+    How long does it take to clean 75% of a 25x25 room with each of 1-10 robots? Output a figure that plots the mean time1 (on the Y-axis) against the number of robots.
 
     """
     listOfMeanTimes = []
@@ -378,8 +496,8 @@ def showPlot2():
 
 def showPlot3():
     """
-    Produces a plot showing dependence of cleaning time on room shape.
-    How long does it take two robots to clean 75% of rooms with dimensions 20x20, 25x16, 40x10, 50x8, 80x5, and 100x4? (Notice that the rooms have the same area.) Output a figure that plots the mean time (on the Y-axis) against the ratio of width to height.
+    Produces a plot showing dependence of cleaning time1 on room shape.
+    How long does it take two robots to clean 75% of rooms with dimensions 20x20, 25x16, 40x10, 50x8, 80x5, and 100x4? (Notice that the rooms have the same area.) Output a figure that plots the mean time1 (on the Y-axis) against the ratio of width to height.
     """
     room_size = [(20, 20), (25, 16), (40, 10), (50, 8), (80, 5), (100, 4)]
     listOfMeanTimes = []
@@ -396,11 +514,10 @@ def showPlot3():
 
 def showPlot4():
     """
-    Produces a plot showing cleaning time vs. percentage cleaned, for
+    Produces a plot showing cleaning time1 vs. percentage cleaned, for
     each of 1-5 robots.
-    How does the time it takes to clean a 25x25 room vary as min_coverage changes? Output a figure that plots mean time (on the Y-axis) against the percentage cleaned, for each of 1-5 robots. Your plot will have multiple curves.
+    How does the time1 it takes to clean a 25x25 room vary as min_coverage changes? Output a figure that plots mean time1 (on the Y-axis) against the percentage cleaned, for each of 1-5 robots. Your plot will have multiple curves.
     """
-    # TODO: Your code goes here
     percentClean = [.25, .5, .75, .8, .9, 1]
     listOfMeanTimes = []
     for i in range(1, 11):
@@ -409,40 +526,6 @@ def showPlot4():
             averageOfTrials = calcAvgLengthList(trialsCollection)
             listOfMeanTimes.append((i, each, int(averageOfTrials)))
     write_lists_csv(listOfMeanTimes, "robots-percentClean.csv", ["Num. Robots", "Percent cleaned", "Means"])
-
-
-
-class RandomWalkRobot(BaseShip):
-    """
-    A RandomWalkRobot is a robot with the "random walk" movement
-    strategy: it chooses a new direction at random after each
-    time-step.
-    """
-
-    # TODO: Your code goes here
-
-    def updatePositionAndClean(self):
-        """
-        Simulate the passage of a single time-step.
-
-        Move the robot to a new position and mark the tile it is on as having
-        been cleaned.
-        """
-        # TODO: Your code goes here
-
-        notAtWall = True
-
-        while notAtWall:
-            currentPosition = self.getRobotPosition()
-            # give robot new direction
-            self.setRobotDirection(random.randint(0, 360))
-            nextPosition = currentPosition.getNewPosition(self.getRobotDirection(), self.robotSpeed)
-            if self.robotRoom.isPositionInRoom(nextPosition):
-                self.robotPosition = nextPosition
-                self.robotRoom.cleanTileAtPosition(self.robotPosition)
-                notAtWall = False
-            else:  # pick a new direction at random
-                self.robotDirection = random.randint(0, 360)
 
 
 
@@ -465,7 +548,7 @@ def write_lists_csv(block_list, file_name, headers):
 
 def showPlot1A():
     """
-    Produces a plot showing dependence of cleaning time on room size.
+    Produces a plot showing dependence of cleaning time1 on room size.
     """
 
     room_sizes = ((5, 5), (10, 10), (15, 15), (20, 20), (25, 25))
@@ -485,18 +568,18 @@ def showPlot1A():
          markeredgecolor='k', markerfacecolor='r', markersize=8)
     axis([20, 630, 0, 1050])
     title('One robot. Time to clean 75% room size for different room sizes')
-    ylabel("Average time over %s trials" % num_trials)
+    ylabel("Average time1 over %s trials" % num_trials)
     xlabel("Room area")
     show()
 
 
 # === Run code
 # def runSimulation(num_robots, speed, width, height, min_coverage, num_trials,robot_type, visualize):
-# print "Simulation 1:"
+# print("Simulation 1:")
 # avg = runSimulation(1, 1.0, 25, 20, 0.8, 70, Robot, False)
-
-# print "simulation 2"
-# RobotAvg = runSimulation(1, 1.0, 10, 10, 0.9, 1, Robot, True)
+#
+print("simulation 2")
+RobotAvg = runSimulation(1, 0.5, 50, 50, 0.9, 1, RandomAstarShip, True)
 # print "simulation 2.1 "
 #
 # RandomWalkRobotAvg = runSimulation(1, 1.0, 10, 10, 0.9, 1, RandomWalkRobot, False)
@@ -515,5 +598,5 @@ def showPlot1A():
 # showPlot2()
 # showPlot3()
 # showPlot4()
-showPlot1A()
+# showPlot1A()
 

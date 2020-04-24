@@ -9,7 +9,7 @@ import time
 from tkinter import *
 
 class RobotVisualization:
-    def __init__(self, num_robots, width, height, delay = 0.2):
+    def __init__(self, num_robots, width, height, dredgeWidth, dredgeHeight, delay = 0.9):
         "Initializes a visualization with the specified parameters."
         # Number of seconds to pause after each frame
         self.delay = delay
@@ -17,6 +17,8 @@ class RobotVisualization:
         self.max_dim = max(width, height)
         self.width = width
         self.height = height
+        self.dredgeWidth = dredgeWidth
+        self.dredgeHeight = dredgeHeight
         self.num_robots = num_robots
 
         # Initialize a drawing surface
@@ -32,12 +34,15 @@ class RobotVisualization:
 
         # Draw gray squares for dirty tiles
         self.tiles = {}
-        for i in range(width):
-            for j in range(height):
+        # self.tempe = []
+        for i in range(dredgeWidth):
+            for j in range(dredgeHeight):
                 x1, y1 = self._map_coords(i, j)
                 x2, y2 = self._map_coords(i + 1, j + 1)
                 self.tiles[(i, j)] = self.w.create_rectangle(x1, y1, x2, y2,
-                                                             fill = "gray")
+                                                             fill = "red")
+        #         self.tempe.append((i,j))
+        # print(f'visulised coordinates {self.tempe}')
 
         # Draw gridlines
         for i in range(width + 1):
@@ -53,14 +58,14 @@ class RobotVisualization:
         self.robots = None
         self.text = self.w.create_text(25, 0, anchor=NW,
                                        text=self._status_string(0, 0))
-        self.time = 0
+        self.timeV = 0
         self.master.update()
 
-    def _status_string(self, time, num_clean_tiles):
+    def _status_string(self, time1, num_clean_tiles):
         "Returns an appropriate status string to print."
         percent_clean = 100 * num_clean_tiles / (self.width * self.height)
         return "Time: %04d; %d tiles (%d%%) cleaned" % \
-            (time, num_clean_tiles, percent_clean)
+            (time1, num_clean_tiles, percent_clean)
 
     def _map_coords(self, x, y):
         "Maps grid positions to window positions (in pixels)."
@@ -82,8 +87,8 @@ class RobotVisualization:
     def update(self, room, robots):
         "Redraws the visualization with the specified room and robot state."
         # Removes a gray square for any tiles have been cleaned.
-        for i in range(self.width):
-            for j in range(self.height):
+        for i in range(self.dredgeWidth):
+            for j in range(self.dredgeHeight):
                 if room.isTileCleaned(i, j):
                     self.w.delete(self.tiles[(i, j)])
         # Delete all existing robots.
@@ -104,12 +109,12 @@ class RobotVisualization:
                 self._draw_robot(robot.getRobotPosition(), robot.getRobotDirection()))
         # Update text
         self.w.delete(self.text)
-        self.time += 1
+        self.timeV += 1
         self.text = self.w.create_text(
             25, 0, anchor=NW,
-            text=self._status_string(self.time, room.getNumCleanedTiles()))
+            text=self._status_string(self.timeV, room.getNumCleanedTiles()))
         self.master.update()
-        self.time.sleep(self.delay)
+        time.sleep(self.delay)
 
     def done(self):
         "Indicate that the animation is done so that we allow the user to close the window."
