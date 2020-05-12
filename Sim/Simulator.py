@@ -7,13 +7,14 @@ from pylab import plot, axis, title, ylabel, xlabel, show
 
 from Sim.Astar import astar
 from Sim import ps11_visualize
+import time
 
 class Position(object):
     """
     A Position represents a location in a two-dimensional room.
     """
-
-    def __init__(self, x, y):
+ 
+    def __init__(self, x, y, heading):
         """
         Initializes a position with coordinates (x, y).
 
@@ -22,6 +23,8 @@ class Position(object):
         """
         self.x = x
         self.y = y
+        self.heading = heading
+        self.turningRadius = 50.0
 
     def getX(self):
         return self.x
@@ -42,6 +45,10 @@ class Position(object):
 
         Returns: a Position object representing the new position.
         """
+        # if angle > 30:
+        #     angle = 30
+        # elif angle < -30:
+        #     angle = -30
         old_x, old_y = self.getX(), self.getY()
         # Compute the change in position
         delta_y = speed * math.cos(math.radians(angle))
@@ -50,6 +57,53 @@ class Position(object):
         new_x = old_x + delta_x
         new_y = old_y + delta_y
         return Position(new_x, new_y)
+
+    def getRightTurn(self, angle, speed, deltaTime=1):
+        angle = math.radians(angle)
+        old_x, old_y = self.getX(), self.getY()
+        relative_start_angle = 90-angle
+        delta_phi = (speed*deltaTime) / (2 * math.pi * self.turningRadius)
+        alpha = (math.pi - delta_phi)/2
+        beta = alpha + (relative_start_angle - math.pi/2)
+        A = self.turningRadius * (math.sin(delta_phi) / math.sin(alpha))
+        delta_x = A*math.cos(beta)
+        delta_y = A*math.sin(beta)
+        new_x = old_x + delta_x
+        new_y = delta_y - old_y #origin of tkinter is always top left
+        new_angle = relative_start_angle + delta_phi
+        return Position(new_x, new_y, math.degrees(new_angle))
+
+    def getLeftTurn(self, angle, speed, deltaTime=1):
+        old_x, old_y = self.getX(), self.getY()
+        relative_start_angle = 90-angle
+        delta_phi = (speed*deltaTime) / (2 * math.pi * self.turningRadius)
+        alpha = (math.pi - delta_phi)/2
+        beta = alpha - (relative_start_angle - math.pi/2)
+        A = self.turningRadius * (math.sin(delta_phi) / math.sin(alpha))
+        delta_x = A*math.cos(beta)
+        delta_y = A*math.sin(beta)
+        new_x = old_x + delta_x
+        new_y = delta_y - old_y #origin of tkinter is always top left
+        new_angle = relative_start_angle+delta_phi
+        return Position(new_x, new_y, math.degrees(new_angle))
+
+    def getStraightMove(self, angle, speed):
+        old_x, old_y = self.getX(), self.getY()
+        delta_y = speed * math.cos(math.radians(angle))
+        delta_x = speed * math.sin(math.radians(angle))
+        new_x = old_x + delta_x
+        new_y = old_y + delta_y
+        return Position(new_x, new_y, angle)
+
+    # def getStraightMove(self, angle, speed, time=1):
+    #     x, y = self.getX(), self.getY()
+    #     for i in range(time):
+    #         delta_y = speed * math.cos(math.radians(angle))
+    #         delta_x = speed * math.sin(math.radians(angle))
+    #         x = x + delta_x
+    #         y = y + delta_y
+    #     return Position(x, y, angle)
+
 
 class RectangularRoom(object):
     """
@@ -216,8 +270,8 @@ class BaseShip(object):
         """
         self.robotSpeed = speed
         self.robotRoom = room
-        self.robotDirection = random.randint(0, 360)
-        self.robotPosition = Position(self.robotRoom.roomWidth, self.robotRoom.roomHeight)
+        self.robotDirection = 270
+        self.robotPosition = Position(self.robotRoom.roomWidth, self.robotRoom.roomHeight, 270)
         self.holdCapacity = 8 #how much dirt the ship can hold
         self.hold = 0
         self.path = []
@@ -350,6 +404,61 @@ class RandomAstarShip(BaseShip):
                 notAtWall = False
             else:  # pick a new direction at random
                 self.robotDirection = random.randint(0, 360)
+class DynamicsTest(BaseShip):
+    def moveForward(self):
+        current_position = self.getRobotPosition()
+        goal_x, goal_y = self.robotRoom.dumpLoc
+        new_direction = 220
+        new_position = current_position.getStraightMove(new_direction, self.robotSpeed)
+        self.robotPosition = new_position
+
+    def moveLeft(self):
+        current_position = self.getRobotPosition()
+        new_position = current_position.getLeftTurn(self.getRobotDirection(), self.robotSpeed)
+        self.robotPosition = new_position
+
+    def moveRight(self):
+        current_position = self.getRobotPosition()
+        new_position = current_position.getLeftTurn(self.getRobotDirection(), self.robotSpeed)
+        self.robotPosition = new_position
+
+
+class ShipWithDynamics(BaseShip):
+    """
+        A Robot is a BaseRobot with the standard movement strategy.
+
+        At each time1-step, a Robot attempts to move in its current
+        direction; when it hits a wall, it chooses a new direction
+        randomly.
+        """
+
+    def updatePositionAndClean(self):
+        """
+        Simulate the passage of a single time1-step.
+
+        Move the robot to a new position and if tile is in the dredgable zone mark the tile as having
+        been cleaned.
+        """
+
+        if self.isHoldFull(self.hold):
+            current_position = self.getRobotPosition()
+            goal_x, goal_y = self.robotRoom.dumpLoc
+            new_direction = math.degrees(math.atan2(goal_x - current_position.getX(), goal_y - current_position.getY()))
+            new_position = self.Position.getStraightMove(self.getRobotDirection(), self.robotSpeed)
+            self.robotPosition = new_position
+            if (int(self.getRobotPosition().getX()), int(self.getRobotPosition().getY())) == self.robotRoom.dumpLoc:
+                self.hold = 0
+        else:
+            currentPosition = self.getRobotPosition()
+            nextPosition = currentPosition.getNewPosition(self.getRobotDirection(), self.robotSpeed)
+            if self.robotRoom.isPositionInRoom(nextPosition):
+                self.robotPosition = nextPosition
+                # tell room this tile is clean
+                if self.robotRoom.isTileDredgable(self.robotPosition) and not self.robotRoom.isTileCleaned(
+                        self.robotPosition.getX(), self.robotPosition.getY()) and not self.isHoldFull(self.hold):
+                    self.robotRoom.dredgeTileAtPosition(self.robotPosition)
+                    self.hold += 1
+                notAtWall = False
 
 def runSimulation(num_robots, speed, width, height, min_coverage, num_trials, robot_type, visualize):
     """
@@ -378,11 +487,13 @@ def runSimulation(num_robots, speed, width, height, min_coverage, num_trials, ro
     avg = runSimulation(10, 1.0, 15, 20, 0.8, 30, Robot, False)
 
     """
-
+    k = 8
     trialsCollection = []  # list to hold lists of date from each trial
     for m in range(num_trials):  # for each trial
+
         # print "Trial %i:" % m,
-        if visualize: anim = ps11_visualize.RobotVisualization(num_robots, width, height, int(width/2), int(height/2), .02)
+        if visualize: anim = ps11_visualize.RobotVisualization(num_robots, width, height, int(width / 2),
+                                                               int(height / 2), .02)
         # create the room
         testRoom = RectangularRoom(width, height)
         testRoom.createDredgingLocations()
@@ -394,19 +505,21 @@ def runSimulation(num_robots, speed, width, height, min_coverage, num_trials, ro
         # initialize for this trial
         percentClean = 0.0000000
         progressList = []
-        while percentClean < min_coverage:  # clean until percent clean >= min coverage
+        initial_time = time.time()
+        while ((time.time()-initial_time) < k):
             if visualize: anim.update(testRoom, robotList)
             for eachRobot in robotList:  # for each time1-step make each robot clean
-                if eachRobot.isPathPlanned == False and eachRobot.isHoldFull(eachRobot.hold):
-                    pos = eachRobot.getRobotPosition()
-                    eachRobot.path = astar(testRoom.roomWidth, testRoom.roomHeight, (int(pos.getX()), int(pos.getY())),
-                                                                                         testRoom.dumpLoc)
-                    eachRobot.isPathPlanned = True
-                eachRobot.updatePositionAndClean()
-                if eachRobot.hold == 0: #terrible do this with more finesse
-                    eachRobot.isPathPlanned = False
-            percentClean = float(testRoom.getNumCleanedTiles()) / float(testRoom.getNumTiles())
-            progressList.append(percentClean)
+                eachRobot.moveForward()
+        initial_time = time.time()
+        while ((time.time()-initial_time) < k):
+            if visualize: anim.update(testRoom, robotList)
+            for eachRobot in robotList:  # for each time1-step make each robot clean
+                eachRobot.moveLeft()
+        initial_time = time.time()
+        while ((time.time()-initial_time) < k):
+            if visualize: anim.update(testRoom, robotList)
+            for eachRobot in robotList:  # for each time1-step make each robot clean
+                eachRobot.moveRight()
         if visualize: anim.done()
         trialsCollection.append(progressList)
 
@@ -414,6 +527,42 @@ def runSimulation(num_robots, speed, width, height, min_coverage, num_trials, ro
     # averageOfTrials = calcAvgLengthList(trialsCollection)
     # print "On average, the %i robot(s) took %i clock ticks to %f clean a %i x %i room." %(num_robots, int(averageOfTrials), min_coverage, width, height)
     return trialsCollection
+
+    # trialsCollection = []  # list to hold lists of date from each trial
+    # for m in range(num_trials):  # for each trial
+    #     # print "Trial %i:" % m,
+    #     if visualize: anim = ps11_visualize.RobotVisualization(num_robots, width, height, int(width/2), int(height/2), .02)
+    #     # create the room
+    #     testRoom = RectangularRoom(width, height)
+    #     testRoom.createDredgingLocations()
+    #     # create robots and put them in a list
+    #     robotList = []
+    #     for i in range(num_robots):
+    #         robotList.append(robot_type(testRoom, speed, testRoom.dredgeArea))
+    #
+    #     # initialize for this trial
+    #     percentClean = 0.0000000
+    #     progressList = []
+    #     while percentClean < min_coverage:  # clean until percent clean >= min coverage
+    #         if visualize: anim.update(testRoom, robotList)
+    #         for eachRobot in robotList:  # for each time1-step make each robot clean
+    #             if eachRobot.isPathPlanned == False and eachRobot.isHoldFull(eachRobot.hold):
+    #                 pos = eachRobot.getRobotPosition()
+    #                 eachRobot.path = astar(testRoom.roomWidth, testRoom.roomHeight, (int(pos.getX()), int(pos.getY())),
+    #                                                                                      testRoom.dumpLoc)
+    #                 eachRobot.isPathPlanned = True
+    #             eachRobot.updatePositionAndClean()
+    #             if eachRobot.hold == 0: #terrible do this with more finesse
+    #                 eachRobot.isPathPlanned = False
+    #         percentClean = float(testRoom.getNumCleanedTiles()) / float(testRoom.getNumTiles())
+    #         progressList.append(percentClean)
+    #     if visualize: anim.done()
+    #     trialsCollection.append(progressList)
+    #
+    #     # print "%i robot(s) took %i clock-ticks to clean %i %% of a %ix%i room." %(num_robots, len(progressList), int(min_coverage * 100), width, height)
+    # # averageOfTrials = calcAvgLengthList(trialsCollection)
+    # # print "On average, the %i robot(s) took %i clock ticks to %f clean a %i x %i room." %(num_robots, int(averageOfTrials), min_coverage, width, height)
+    # return trialsCollection
 
 def computeMeans(list_of_lists):
     """
@@ -579,7 +728,7 @@ def showPlot1A():
 # avg = runSimulation(1, 1.0, 25, 20, 0.8, 70, Robot, False)
 #
 print("simulation 2")
-RobotAvg = runSimulation(1, 0.5, 50, 50, 0.9, 1, RandomAstarShip, True)
+RobotAvg = runSimulation(1, 0.1, 200, 200, 0.9, 1, DynamicsTest, True)
 # print "simulation 2.1 "
 #
 # RandomWalkRobotAvg = runSimulation(1, 1.0, 10, 10, 0.9, 1, RandomWalkRobot, False)

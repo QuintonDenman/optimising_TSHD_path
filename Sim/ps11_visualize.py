@@ -9,30 +9,31 @@ import time
 from tkinter import *
 
 class RobotVisualization:
-    def __init__(self, num_robots, width, height, dredgeWidth, dredgeHeight, delay = 0.9):
+    def __init__(self, num_robots, width, height, dredgeWidth, dredgeHeight, delay = 0.5):
         "Initializes a visualization with the specified parameters."
         # Number of seconds to pause after each frame
         self.delay = delay
 
         self.max_dim = max(width, height)
-        self.width = width
-        self.height = height
+        self.width = width+100
+        self.height = height+100
         self.dredgeWidth = dredgeWidth
         self.dredgeHeight = dredgeHeight
         self.num_robots = num_robots
+        self.canvas_width = width*5
+        self.canvas_height = height*5
 
         # Initialize a drawing surface
         self.master = Tk()
-        self.w = Canvas(self.master, width=500, height=500)
+        self.w = Canvas(self.master, width=self.canvas_width, height=self.canvas_height)
         self.w.pack()
-        self.master.update()
+        # self.master.update()
 
         # Draw a backing and lines
         x1, y1 = self._map_coords(0, 0)
-        x2, y2 = self._map_coords(width, height)
+        x2, y2 = self._map_coords(self.width, self.height)
         self.w.create_rectangle(x1, y1, x2, y2, fill = "white")
 
-        # Draw gray squares for dirty tiles
         self.tiles = {}
         # self.tempe = []
         for i in range(dredgeWidth):
@@ -45,13 +46,13 @@ class RobotVisualization:
         # print(f'visulised coordinates {self.tempe}')
 
         # Draw gridlines
-        for i in range(width + 1):
+        for i in range(self.width + 1):
             x1, y1 = self._map_coords(i, 0)
-            x2, y2 = self._map_coords(i, height)
+            x2, y2 = self._map_coords(i, self.height)
             self.w.create_line(x1, y1, x2, y2)
-        for i in range(height + 1):
+        for i in range(self.height + 1):
             x1, y1 = self._map_coords(0, i)
-            x2, y2 = self._map_coords(width, i)
+            x2, y2 = self._map_coords(self.width, i)
             self.w.create_line(x1, y1, x2, y2)
 
         # Draw some status text
@@ -64,7 +65,7 @@ class RobotVisualization:
     def _status_string(self, time1, num_clean_tiles):
         "Returns an appropriate status string to print."
         percent_clean = 100 * num_clean_tiles / (self.width * self.height)
-        return "Time: %04d; %d tiles (%d%%) cleaned" % \
+        return "Time: %04d; %d tiles (%d%%) dredged" % \
             (time1, num_clean_tiles, percent_clean)
 
     def _map_coords(self, x, y):
