@@ -22,13 +22,10 @@ class RobotVisualization:
         self.num_robots = num_robots
         self.canvas_width = 1400
         self.canvas_height = 1400
-        self.scale = 1300 #used in map_coords function to convert ints to pixel locations
-        self.gridRatio = self.scale / width
 
         # Initialize a drawing surface
         self.master = Tk()
         self.w = Canvas(self.master, width=self.canvas_width, height=self.canvas_height)
-
         self.w.pack()
         # self.master.update()
 
@@ -37,19 +34,16 @@ class RobotVisualization:
         x2, y2 = self._map_coords(self.width, self.height)
         self.w.create_rectangle(x1, y1, x2, y2, fill = "white")
 
-        self.dredge_tiles = {}
+        self.tiles = {}
         # self.tempe = []
         for i in range(dredgeWidth):
             for j in range(dredgeHeight):
                 x1, y1 = self._map_coords(i, j)
                 x2, y2 = self._map_coords(i + 1, j + 1)
-                self.dredge_tiles[(i, j)] = self.w.create_rectangle(x1, y1, x2, y2, fill = "red")
-
-        # self.cells = {}
-        # for i in range(width):
-        #     for j in range(height):
-        #         self.cells.append((i, j))
-
+                self.tiles[(i, j)] = self.w.create_rectangle(x1, y1, x2, y2,
+                                                             fill = "red")
+        #         self.tempe.append((i,j))
+        # print(f'visulised coordinates {self.tempe}')
 
         # Draw gridlines
         for i in range(self.width + 1):
@@ -60,7 +54,6 @@ class RobotVisualization:
             x1, y1 = self._map_coords(0, i)
             x2, y2 = self._map_coords(self.width, i)
             self.w.create_line(x1, y1, x2, y2)
-
 
         # Draw some status text
         self.robots = None
@@ -77,13 +70,12 @@ class RobotVisualization:
 
     def _map_coords(self, x, y):
         "Maps grid positions to window positions (in pixels)."
-        # return (50+x*self.gridRatio, 1350-y*self.gridRatio )
         return (700 + 1300 * ((x - self.width / 2.0) / self.max_dim),
                 700 + 1300 * ((self.height / 2.0 - y) / self.max_dim))
 
-    def _draw_robot(self, position):
+    def _draw_robot(self, position, direction):
         "Returns a polygon representing a robot with the specified parameters."
-        x, y, direction = position.getX(), position.getY(), position.getHeading()
+        x, y = position.getX(), position.getY()
         d1 = direction + 165
         d2 = direction - 165
         x1, y1 = self._map_coords(x, y)
@@ -99,7 +91,7 @@ class RobotVisualization:
         for i in range(self.dredgeWidth):
             for j in range(self.dredgeHeight):
                 if room.isTileCleaned(i, j):
-                    self.w.delete(self.dredge_tiles[(i, j)])
+                    self.w.delete(self.tiles[(i, j)])
         # Delete all existing robots.
         if self.robots:
             for robot in self.robots:
@@ -109,13 +101,13 @@ class RobotVisualization:
         self.robots = []
         for robot in robots:
             pos = robot.getRobotPosition()
-            x, y, angle = pos.getX(), pos.getY(), pos.getHeading()
+            x, y = pos.getX(), pos.getY()
             x1, y1 = self._map_coords(x - 0.08, y - 0.08)
             x2, y2 = self._map_coords(x + 0.08, y + 0.08)
             self.robots.append(self.w.create_oval(x1, y1, x2, y2,
                                                   fill = "black"))
             self.robots.append(
-                self._draw_robot(robot.getRobotPosition()))
+                self._draw_robot(robot.getRobotPosition(), robot.getRobotDirection()))
         # Update text
         self.w.delete(self.text)
         self.timeV += 1
@@ -123,6 +115,12 @@ class RobotVisualization:
             25, 0, anchor=NW,
             text=self._status_string(self.timeV, room.getNumCleanedTiles()))
         self.master.update()
+        pos = robot.getRobotPosition()
+        x, y = pos.getX(), pos.getY()
+        x1, y1 = self._map_coords(x - 0.08, y - 0.08)
+        x2, y2 = self._map_coords(x + 0.08, y + 0.08)
+        self.robots.append(self.w.create_oval(x1, y1, x2, y2,
+                                              fill="black"))
         time.sleep(self.delay)
 
     def done(self):

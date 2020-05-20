@@ -192,7 +192,7 @@ def interpolate(ind, length, mode, max_curvature, origin_x, origin_y, origin_yaw
     return path_x, path_y, path_yaw, directions
 
 
-def dubins_path_planning(sx, sy, syaw, ex, ey, eyaw, c, step_size=0.1):
+def dubins_path_planning(sx, sy, syaw, ex, ey, eyaw, c, step_size=1):
     """
     Dubins path plannner
     input:
@@ -298,6 +298,11 @@ def plot_arrow(x, y, yaw, length=1.0, width=0.5, fc="r", ec="k"):  # pragma: no 
                   fc=fc, ec=ec, head_width=width, head_length=width)
         plt.plot(x, y)
 
+def getDubinsPath(start_x, start_y, start_angle, end_x, end_y, end_angle, curvature):
+    px, py, pyaw, mode, clen = dubins_path_planning(start_x, start_y, start_angle,
+                                                    end_x, end_y, end_angle, curvature)
+    return px, py, pyaw
+
 
 def main():
     print("Dubins path planner sample start!!")
@@ -314,7 +319,7 @@ def main():
 
     px, py, pyaw, mode, clen = dubins_path_planning(start_x, start_y, start_yaw,
                                                     end_x, end_y, end_yaw, curvature)
-
+    print(f'px: {px}, \n py: {py},\n pyaw: {pyaw},\n mode: {mode}, clen: {clen}')
     if show_animation:
         plt.plot(px, py, label="final course " + "".join(mode))
 

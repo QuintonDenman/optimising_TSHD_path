@@ -8,7 +8,7 @@ from pylab import plot, axis, title, ylabel, xlabel, show
 from Sim.Astar import astar
 from Sim import ps11_visualize
 import time
-
+from Sim import Dubins
 class Position(object):
     """
     A Position represents a location in a two-dimensional room.
@@ -21,76 +21,108 @@ class Position(object):
         x: a real number indicating the x-coordinate
         y: a real number indicating the y-coordinate
         """
-        self.x = x
-        self.y = y
+        self.x = x #int(x)
+        self.y = y #int(y)
         self.heading = heading
-        self.turningRadius = 50.0
+        self.turningRadius = 6
 
     def getX(self):
+        # print(self.x)
         return self.x
 
     def getY(self):
+        # print(self.y)
         return self.y
 
-    def getNewPosition(self, angle, speed):
-        """
-        Computes and returns the new Position after a single clock-tick has
-        passed, with this object as the current position, and with the
-        specified angle and speed.
+    def getHeading(self):
+        return self.heading
 
-        Does NOT test whether the returned position fits inside the room.
+    def setHeading(self, angle):
+        self.heading = angle
 
-        angle: integer representing angle in degrees, 0 <= angle < 360
-        speed: positive float representing speed
+    def setPosition(self, x, y, angle):
+        return Position(x, y, angle)
 
-        Returns: a Position object representing the new position.
-        """
-        # if angle > 30:
-        #     angle = 30
-        # elif angle < -30:
-        #     angle = -30
-        old_x, old_y = self.getX(), self.getY()
-        # Compute the change in position
-        delta_y = speed * math.cos(math.radians(angle))
-        delta_x = speed * math.sin(math.radians(angle))
-        # Add that to the existing position
-        new_x = old_x + delta_x
-        new_y = old_y + delta_y
-        return Position(new_x, new_y)
+    # def getNewPosition(self, angle, speed):
+    #     """
+    #     Computes and returns the new Position after a single clock-tick has
+    #     passed, with this object as the current position, and with the
+    #     specified angle and speed.
+    #
+    #     Does NOT test whether the returned position fits inside the room.
+    #
+    #     angle: integer representing angle in degrees, 0 <= angle < 360
+    #     speed: positive float representing speed
+    #
+    #     Returns: a Position object representing the new position.
+    #     """
+    #     # if angle > 30:
+    #     #     angle = 30
+    #     # elif angle < -30:
+    #     #     angle = -30
+    #     old_x, old_y = self.getX(), self.getY()
+    #     # Compute the change in position
+    #     delta_y = speed * math.cos(math.radians(angle))
+    #     delta_x = speed * math.sin(math.radians(angle))
+    #     # Add that to the existing position
+    #     new_x = old_x + delta_x
+    #     new_y = old_y + delta_y
+    #     return Position(new_x, new_y)
 
     def getRightTurn(self, angle, speed, deltaTime=1):
-        angle = math.radians(angle)
+        # angle = math.radians(angle)
+        # old_x, old_y = self.getX(), self.getY()
+        # relative_start_angle = 90-angle
+        # delta_phi = (speed*deltaTime) / (2 * math.pi * self.turningRadius)
+        # alpha = (math.pi - delta_phi)/2
+        # beta = alpha + (relative_start_angle - math.pi/2)
+        # A = self.turningRadius * (math.sin(delta_phi) / math.sin(alpha))
+        # delta_x = A*math.cos(beta)
+        # delta_y = A*math.sin(beta)
+        # new_x = old_x + delta_x
+        # new_y = delta_y - old_y #origin of tkinter is always top left
+        # new_angle = relative_start_angle + delta_phi
+        # return Position(new_x, new_y, math.degrees(new_angle))
+        angular_speed = (speed / self.turningRadius) * -1
         old_x, old_y = self.getX(), self.getY()
-        relative_start_angle = 90-angle
-        delta_phi = (speed*deltaTime) / (2 * math.pi * self.turningRadius)
-        alpha = (math.pi - delta_phi)/2
-        beta = alpha + (relative_start_angle - math.pi/2)
-        A = self.turningRadius * (math.sin(delta_phi) / math.sin(alpha))
-        delta_x = A*math.cos(beta)
-        delta_y = A*math.sin(beta)
-        new_x = old_x + delta_x
-        new_y = delta_y - old_y #origin of tkinter is always top left
-        new_angle = relative_start_angle + delta_phi
-        return Position(new_x, new_y, math.degrees(new_angle))
+        phi_s = math.radians(angle)
+        new_x = old_x + self.turningRadius * math.sin(phi_s) + self.turningRadius * math.sin(angular_speed *
+                                                                                             deltaTime - phi_s)
+        new_y = old_y + self.turningRadius * math.cos(phi_s) - self.turningRadius * math.cos(angular_speed * deltaTime - phi_s)
+        new_heading = math.degrees(phi_s - angular_speed * deltaTime)
+        return Position(new_x, new_y, new_heading)
 
     def getLeftTurn(self, angle, speed, deltaTime=1):
+        # old_x, old_y = self.getX(), self.getY()
+        # relative_start_angle = 90-angle
+        # delta_phi = (speed*deltaTime) / (2 * math.pi * self.turningRadius)
+        # alpha = (math.pi - delta_phi)/2
+        # beta = alpha - (relative_start_angle - math.pi/2)
+        # A = self.turningRadius * (math.sin(delta_phi) / math.sin(alpha))
+        # delta_x = A*math.cos(beta)
+        # delta_y = A*math.sin(beta)
+        # new_x = old_x + delta_x
+        # new_y = delta_y - old_y #origin of tkinter is always top left
+        # new_angle = relative_start_angle+delta_phi
+        # return Position(new_x, new_y, math.degrees(new_angle))
+        angular_speed = speed/ self.turningRadius
         old_x, old_y = self.getX(), self.getY()
-        relative_start_angle = 90-angle
-        delta_phi = (speed*deltaTime) / (2 * math.pi * self.turningRadius)
-        alpha = (math.pi - delta_phi)/2
-        beta = alpha - (relative_start_angle - math.pi/2)
-        A = self.turningRadius * (math.sin(delta_phi) / math.sin(alpha))
-        delta_x = A*math.cos(beta)
-        delta_y = A*math.sin(beta)
-        new_x = old_x + delta_x
-        new_y = delta_y - old_y #origin of tkinter is always top left
-        new_angle = relative_start_angle+delta_phi
-        return Position(new_x, new_y, math.degrees(new_angle))
+        phi_s = math.radians(angle)
+        new_x = old_x - self.turningRadius * math.sin(phi_s) + self.turningRadius * \
+                math.sin(angular_speed*deltaTime + phi_s)
+        new_y = old_y - self.turningRadius * math.cos(phi_s) + self.turningRadius * \
+                math.cos(angular_speed*deltaTime + phi_s)
+        new_heading = math.degrees(phi_s + angular_speed * deltaTime)
+        return Position(new_x, new_y, new_heading)
+
+
+
+
 
     def getStraightMove(self, angle, speed):
         old_x, old_y = self.getX(), self.getY()
-        delta_y = speed * math.cos(math.radians(angle))
-        delta_x = speed * math.sin(math.radians(angle))
+        delta_y = speed * math.sin(math.radians(angle))
+        delta_x = speed * math.cos(math.radians(angle))
         new_x = old_x + delta_x
         new_y = old_y + delta_y
         return Position(new_x, new_y, angle)
@@ -108,16 +140,16 @@ class Position(object):
 class RectangularRoom(object):
     """
     A RectangularRoom represents a rectangular region containing clean or dirty
-    tiles.
+    dredge_tiles.
 
-    A room has a width and a height and contains (width * height) tiles. At any
-    particular time1, each of these tiles is either clean or dirty.
+    A room has a width and a height and contains (width * height) dredge_tiles. At any
+    particular time1, each of these dredge_tiles is either clean or dirty.
     """
 
     def __init__(self, width, height):
         """
         Initializes a rectangular room with the specified width and height.
-        Initially, no tiles in the room have been cleaned.
+        Initially, no dredge_tiles in the room have been cleaned.
 
         width: an integer > 0
         height: an integer > 0
@@ -130,6 +162,8 @@ class RectangularRoom(object):
         self.cleanTiles = {}  # a dictionary of Position objects
         self.resultantEnvForce = 2
         self.dumpLoc = (width, height)
+        self.dredgePerimeter = []
+        self.closePerimeter = []
 
     def createDredgingLocations(self):
         """"
@@ -153,6 +187,12 @@ class RectangularRoom(object):
         intPosition = (int(pos.getX()), int(pos.getY()))
         self.cleanTiles[intPosition] = self.cleanTiles.get(intPosition, 0) + 1
 
+    def dredgeTileAtPosition(self, x, y):
+
+        intPosition = (int(x), int(y))
+        self.cleanTiles[intPosition] = self.cleanTiles.get(intPosition, 0) + 1
+
+
     def isTileCleaned(self, m, n):
         """
         Return True if the tile (m, n) has been cleaned.
@@ -167,6 +207,10 @@ class RectangularRoom(object):
         if questionedPosition in self.cleanTiles:
             return True
         return False
+
+    def resetTiles(self):
+        self.cleanTiles = {}
+        return
 
     def isTileDredgable(self, pos):
         """
@@ -187,7 +231,7 @@ class RectangularRoom(object):
 
     def getNumTiles(self):
         """
-        Return the total number of tiles in the room.
+        Return the total number of dredge_tiles in the room.
 
         returns: an integer
         """
@@ -195,12 +239,24 @@ class RectangularRoom(object):
 
     def getNumCleanedTiles(self):
         """
-        Return the total number of clean tiles in the room.
+        Return the total number of clean dredge_tiles in the room.
 
         returns: an integer
         """
         # Counts dictionary entries.  Assumes that dictionary value cannot be 0, i.e., no tile can become unclean after being cleaned.
         return len(self.cleanTiles)
+
+    def getRandomDredgePosition(self):
+        """
+        Return a random position inside the room.
+
+        returns: a Position object.
+        """
+        # generate random numbers between 0 and width or height inclusive
+        randomWidth = random.randint(0, self.dredgeAreaWidth - 1)
+        randomHeight = random.randint(0, self.dredgeAreaHeight - 1)
+        randomAngle = random.randint(0, 360)
+        return Position(randomWidth, randomHeight, randomAngle)
 
     def getRandomPosition(self):
         """
@@ -211,7 +267,8 @@ class RectangularRoom(object):
         # generate random numbers between 0 and width or height inclusive
         randomWidth = random.randint(0, self.roomWidth - 1)
         randomHeight = random.randint(0, self.roomHeight - 1)
-        return Position(randomWidth, randomHeight)
+        randomAngle = random.randint(0, 360)
+        return Position(randomWidth, randomHeight, randomAngle)
 
     def isPositionInRoom(self, pos):
         """
@@ -242,6 +299,16 @@ class RectangularRoom(object):
         if pos.getX() >= self.dredgeAreaWidth: return False
         if pos.getY() >= self.dredgeAreaHeight: return False #Uneccessary if you assume dredging area is in the room
 
+    def getPerimeter(self):
+        for i in range(self.dredgeAreaHeight):
+            self.dredgePerimeter.append((0,i))
+            self.closePerimeter.append((0,i))
+            self.dredgePerimeter.append((self.dredgeAreaHeight, i))
+            self.closePerimeter.append((self.dredgeAreaHeight, i))
+            self.dredgePerimeter.append((i, self.dredgeAreaHeight))
+            self.dredgePerimeter.append((i, 0))
+        return
+
 class BaseShip(object):
     """
     Represents a robot cleaning a particular room.
@@ -270,14 +337,14 @@ class BaseShip(object):
         """
         self.robotSpeed = speed
         self.robotRoom = room
-        self.robotDirection = 270
-        self.robotPosition = Position(self.robotRoom.roomWidth, self.robotRoom.roomHeight, 270)
-        self.holdCapacity = 8 #how much dirt the ship can hold
+        self.robotPosition = Position(self.robotRoom.roomWidth/2, self.robotRoom.roomHeight/2, 0)
+        self.holdCapacity = 50 #how much dirt the ship can hold
         self.hold = 0
         self.path = []
         self.isPathPlanned = False
         self.environmentForce = 1
         self.environmentForceDirection = 0
+
 
     def getRobotPosition(self):
         """
@@ -289,22 +356,6 @@ class BaseShip(object):
         # print "self.robotPosition is %s" %self.robotPosition
         return self.robotPosition
 
-    def getRobotDirection(self):
-        """
-        Return the direction of the robot.
-
-        returns: an integer d giving the direction of the robot as an angle in
-        degrees, 0 <= d < 360.
-        """
-        return self.robotDirection
-
-    def setRobotPosition(self, position):
-        """
-        Set the position of the robot to POSITION.
-
-        position: a Position object.
-        """
-        self.robotPosition = position
 
     def setRobotDirection(self, direction):
         """
@@ -321,7 +372,7 @@ class BaseShip(object):
         hold: amount of dirt ship has collected
 
         """
-        if hold == self.holdCapacity:
+        if hold >= self.holdCapacity:
             return True
         return False
 
@@ -378,6 +429,7 @@ class RandomAstarShip(BaseShip):
         """
 
         notAtWall = True
+
         if self.isHoldFull(self.hold):
             currentPosition = self.getRobotPosition()
             # calculate new direction by using current location and target tile
@@ -404,26 +456,28 @@ class RandomAstarShip(BaseShip):
                 notAtWall = False
             else:  # pick a new direction at random
                 self.robotDirection = random.randint(0, 360)
+
+
 class DynamicsTest(BaseShip):
     def moveForward(self):
         current_position = self.getRobotPosition()
-        goal_x, goal_y = self.robotRoom.dumpLoc
-        new_direction = 220
-        new_position = current_position.getStraightMove(new_direction, self.robotSpeed)
+        new_position = current_position.getStraightMove(current_position.getHeading(), self.robotSpeed)
         self.robotPosition = new_position
+        print(f'My angle is: {new_position.getHeading()}')
 
     def moveLeft(self):
         current_position = self.getRobotPosition()
-        new_position = current_position.getLeftTurn(self.getRobotDirection(), self.robotSpeed)
+        new_position = current_position.getLeftTurn(current_position.getHeading(), self.robotSpeed)
         self.robotPosition = new_position
-
+        print(f'My left angle is: {new_position.getHeading()}')
     def moveRight(self):
         current_position = self.getRobotPosition()
-        new_position = current_position.getLeftTurn(self.getRobotDirection(), self.robotSpeed)
+        new_position = current_position.getLeftTurn(current_position.getHeading(), self.robotSpeed)
         self.robotPosition = new_position
+        print(f'My riight angle is: {new_position.getHeading()}')
 
 
-class ShipWithDynamics(BaseShip):
+class ShipWithoutHold(BaseShip):
     """
         A Robot is a BaseRobot with the standard movement strategy.
 
@@ -432,33 +486,117 @@ class ShipWithDynamics(BaseShip):
         randomly.
         """
 
-    def updatePositionAndClean(self):
-        """
-        Simulate the passage of a single time1-step.
+    def findOptDredgeRoute(self):
+        dump_x, dump_y = self.robotRoom.dumpLoc
+        currentPosition = self.getRobotPosition()
+        startAngle = 225
+        while not self.isHoldFull(self.hold):
+            if ((int(currentPosition.getX()) == dump_x) and (int(currentPosition.getY()))  == dump_y):
+                perimeterIndex = random.randint(0, len(self.robotRoom.closePerimeter))
+                print('trying')
+                print(f'perimeter index: {self.robotRoom.closePerimeter[perimeterIndex]}')
+                perimeter_x, perimeter_y = self.robotRoom.closePerimeter[perimeterIndex]
+                endAngle = (math.atan2(dump_x - perimeter_x, dump_y - perimeter_y))
+                px, py, pangle = Dubins.getDubinsPath(dump_x, dump_y, startAngle, perimeter_x, perimeter_y, endAngle,
+                                                      currentPosition.turningRadius)
+                newPos = currentPosition.setPosition(px[-1], py[-1], pangle[-1])
+                self.robotPosition = newPos
+            else:
+                startDredgeArea = self.robotRoom.getNumCleanedTiles() / self.robotRoom.getNumTiles()
+                rand_pos = self.robotRoom.getRandomDredgePosition()
+                px, py, pangle = Dubins.getDubinsPath(currentPosition.getX(), currentPosition.getY(),
+                                                      currentPosition.getHeading(), rand_pos.getX(), rand_pos.getY(),
+                                                      math.radians(rand_pos.getHeading()), currentPosition.turningRadius)
+                print(len(px))
+                for i, tmp in enumerate(px):
+                    if not self.robotRoom.isTileCleaned(tmp, py[i]):
+                        self.robotRoom.dredgeTileAtPosition(tmp, py[i])
+                        self.hold += 1
+                        # print(self.hold)
+                newDredgeArea = self.robotRoom.getNumCleanedTiles() / self.robotRoom.getNumTiles()
+                self.path.append([startDredgeArea-newDredgeArea, px, py, pangle])
+                newPos = currentPosition.setPosition(px[-1], py[-1], pangle[-1])
+                self.robotPosition = newPos
+        currentPosition = self.getRobotPosition()
+        endAngle = (math.atan2(currentPosition.getX() - dump_x, currentPosition.getY() - dump_y))
+        px, py, pangle = Dubins.getDubinsPath(currentPosition.getX(), currentPosition.getY(),
+                                              currentPosition.getHeading(), dump_x, dump_y, endAngle,
+                                              currentPosition.turningRadius)
 
-        Move the robot to a new position and if tile is in the dredgable zone mark the tile as having
-        been cleaned.
-        """
+        newPos = currentPosition.setPosition(px[-1], py[-1], pangle[-1])
+        self.robotPosition = newPos
+        self.hold = 0
+    def findAllroutes(self):
+        currentPosition = self.getRobotPosition()
+        startDredgeArea = self.robotRoom.getNumCleanedTiles() / self.robotRoom.getNumTiles()
+        perimeterIndex = random.rand(0, len(self.robotRoom.dredgePerimeter))
+        px, py, pangle = Dubins.getDubinsPath(currentPosition.getX(), currentPosition.getY(),
+                                              currentPosition.getHeading(),
+                                              random.randint(0, self.robotRoom.dredgeAreaWidth),
+                                              random.randint(self.robotRoom.dredgeAreaHeight,
+                                                             self.robotRoom.roomHeight),
+                                              math.radians(random.random(0,360)), currentPosition.turningRadius)
+        for i in range(px):
+            if not self.robotRoom.isTileCleaned(px[i], py[i]):
+                self.robotRoom.dredgeTileAtPosition(px[i], py[i])
+        newDredgeArea = self.robotRoom.getNumCleanedTiles() / self.robotRoom.getNumTiles()
+        self.path.append([startDredgeArea-newDredgeArea, px, py, pangle])
+        newPos = currentPosition.setPosition(px[-1], py[-1], pangle[-1])
+        self.robotPosition = newPos
 
-        if self.isHoldFull(self.hold):
-            current_position = self.getRobotPosition()
-            goal_x, goal_y = self.robotRoom.dumpLoc
-            new_direction = math.degrees(math.atan2(goal_x - current_position.getX(), goal_y - current_position.getY()))
-            new_position = self.Position.getStraightMove(self.getRobotDirection(), self.robotSpeed)
-            self.robotPosition = new_position
-            if (int(self.getRobotPosition().getX()), int(self.getRobotPosition().getY())) == self.robotRoom.dumpLoc:
-                self.hold = 0
-        else:
-            currentPosition = self.getRobotPosition()
-            nextPosition = currentPosition.getNewPosition(self.getRobotDirection(), self.robotSpeed)
-            if self.robotRoom.isPositionInRoom(nextPosition):
-                self.robotPosition = nextPosition
-                # tell room this tile is clean
-                if self.robotRoom.isTileDredgable(self.robotPosition) and not self.robotRoom.isTileCleaned(
-                        self.robotPosition.getX(), self.robotPosition.getY()) and not self.isHoldFull(self.hold):
-                    self.robotRoom.dredgeTileAtPosition(self.robotPosition)
-                    self.hold += 1
-                notAtWall = False
+
+
+
+
+def createPathSimulation(num_robots, speed, width, height, min_coverage, num_trials, robot_type, visualize):
+
+
+    trialsCollection = []  # list to hold lists of date from each trial
+    for m in range(num_trials):  # for each trial
+        # print "Trial %i:" % m,
+        if visualize: anim = ps11_visualize.RobotVisualization(num_robots, width, height, int(width/2), int(height/2), .02)
+        # create the room
+        testRoom = RectangularRoom(width, height)
+        testRoom.createDredgingLocations()
+        testRoom.getPerimeter()
+        # create robots and put them in a list
+        robotList = []
+        for i in range(num_robots):
+            robotList.append(robot_type(testRoom, speed, testRoom.dredgeArea))
+
+        # initialize for this trial
+        percentClean = 0.0000000
+        progressList = []
+        x = 0
+        k = 1000
+        while x < k:
+            print(x)
+            if visualize: anim.update(testRoom, robotList)
+            for eachRobot in robotList:  #for each time1-step make each robot clean
+                testRoom.resetTiles()
+                eachRobot.findOptDredgeRoute()
+            x += 1
+        if visualize: anim.done()
+        trialsCollection.append(progressList)
+        coverage = []
+
+        for idx, val in enumerate(eachRobot.path):
+            if idx < 10:
+                coverage.append((idx, val[0]))
+            else:
+                coverage.sort(key=lambda j: j[1])
+                for k, cov in enumerate(coverage):
+                    if val[0] > cov[1]:
+                        coverage[k] = (idx, val[0])
+                        break
+        print(coverage)
+
+
+
+        # print "%i robot(s) took %i clock-ticks to clean %i %% of a %ix%i room." %(num_robots, len(progressList), int(min_coverage * 100), width, height)
+    # averageOfTrials = calcAvgLengthList(trialsCollection)
+    # print "On average, the %i robot(s) took %i clock ticks to %f clean a %i x %i room." %(num_robots, int(averageOfTrials), min_coverage, width, height)
+    return trialsCollection
 
 def runSimulation(num_robots, speed, width, height, min_coverage, num_trials, robot_type, visualize):
     """
@@ -487,7 +625,7 @@ def runSimulation(num_robots, speed, width, height, min_coverage, num_trials, ro
     avg = runSimulation(10, 1.0, 15, 20, 0.8, 30, Robot, False)
 
     """
-    k = 8
+    k = 5
     trialsCollection = []  # list to hold lists of date from each trial
     for m in range(num_trials):  # for each trial
 
@@ -506,6 +644,7 @@ def runSimulation(num_robots, speed, width, height, min_coverage, num_trials, ro
         percentClean = 0.0000000
         progressList = []
         initial_time = time.time()
+
         while ((time.time()-initial_time) < k):
             if visualize: anim.update(testRoom, robotList)
             for eachRobot in robotList:  # for each time1-step make each robot clean
@@ -519,10 +658,14 @@ def runSimulation(num_robots, speed, width, height, min_coverage, num_trials, ro
         while ((time.time()-initial_time) < k):
             if visualize: anim.update(testRoom, robotList)
             for eachRobot in robotList:  # for each time1-step make each robot clean
+                eachRobot.moveForward()
+        initial_time = time.time()
+        while ((time.time()-initial_time) < k):
+            if visualize: anim.update(testRoom, robotList)
+            for eachRobot in robotList:  # for each time1-step make each robot clean
                 eachRobot.moveRight()
         if visualize: anim.done()
         trialsCollection.append(progressList)
-
         # print "%i robot(s) took %i clock-ticks to clean %i %% of a %ix%i room." %(num_robots, len(progressList), int(min_coverage * 100), width, height)
     # averageOfTrials = calcAvgLengthList(trialsCollection)
     # print "On average, the %i robot(s) took %i clock ticks to %f clean a %i x %i room." %(num_robots, int(averageOfTrials), min_coverage, width, height)
@@ -728,7 +871,8 @@ def showPlot1A():
 # avg = runSimulation(1, 1.0, 25, 20, 0.8, 70, Robot, False)
 #
 print("simulation 2")
-RobotAvg = runSimulation(1, 0.1, 200, 200, 0.9, 1, DynamicsTest, True)
+# RobotAvg = runSimulation(1, 0.1, 100, 100, 0.9, 1, DynamicsTest, True)
+RobotAvg = createPathSimulation(1, 0.5, 30, 30, 0.9, 1, ShipWithoutHold, False)
 # print "simulation 2.1 "
 #
 # RandomWalkRobotAvg = runSimulation(1, 1.0, 10, 10, 0.9, 1, RandomWalkRobot, False)
