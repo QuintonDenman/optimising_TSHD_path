@@ -136,6 +136,18 @@ class Position(object):
     #         y = y + delta_y
     #     return Position(x, y, angle)
 
+    def getConstrainedRandomAngle(self, constraint):
+        return random.randrange(-constraint, constraint)
+
+    def getConstrainedRandomPosition(self, pos, loc_constraint, angle_constraint):
+        x = pos.getX
+        y = pos.getY
+        angle = pos.getHeading
+        new_x = random.randint(x - loc_constraint, x + loc_constraint)
+        new_y = random.randint(y - loc_constraint, y + loc_constraint)
+        new_angle = (math.atan2(x - new_x, y - new_y))
+        return Position(new_x, new_y, new_angle)
+
 
 class RectangularRoom(object):
     """
@@ -338,13 +350,17 @@ class BaseShip(object):
         self.robotSpeed = speed
         self.robotRoom = room
         self.robotPosition = Position(self.robotRoom.roomWidth/2, self.robotRoom.roomHeight/2, 0)
-        self.holdCapacity = 50 #how much dirt the ship can hold
+        self.holdCapacity = 583 #based on a dredge track length and cell size (3500m/6m=583.333)
         self.hold = 0
         self.path = []
+        self.pathDredgePercentage = []
         self.isPathPlanned = False
         self.environmentForce = 1
         self.environmentForceDirection = 0
-
+        #parameters
+        self.waypointSeperation = 10
+        self.nextAngleConstraint = 30
+        self.numOfWaypoints = 2
 
     def getRobotPosition(self):
         """
@@ -375,6 +391,8 @@ class BaseShip(object):
         if hold >= self.holdCapacity:
             return True
         return False
+
+
 
 
 class Robot(BaseShip):
@@ -477,7 +495,7 @@ class DynamicsTest(BaseShip):
         print(f'My riight angle is: {new_position.getHeading()}')
 
 
-class ShipWithoutHold(BaseShip):
+class PerimeterSetDistance(BaseShip):
     """
         A Robot is a BaseRobot with the standard movement strategy.
 
@@ -490,24 +508,22 @@ class ShipWithoutHold(BaseShip):
         dump_x, dump_y = self.robotRoom.dumpLoc
         currentPosition = self.getRobotPosition()
         startAngle = 225
+        perimeterIndex = random.randint(0, (len(self.robotRoom.closePerimeter) - 1))
+        perimeter_x, perimeter_y = self.robotRoom.closePerimeter[perimeterIndex]
+        endAngle = (math.atan2(dump_x - perimeter_x, dump_y - perimeter_y))
+        px, py, pangle = Dubins.getDubinsPath(dump_x, dump_y, startAngle, perimeter_x, perimeter_y, endAngle,
+                                              currentPosition.turningRadius)
+        newPos = currentPosition.setPosition(px[-1], py[-1], pangle[-1])
+        self.robotPosition = newPos
         while not self.isHoldFull(self.hold):
-            if ((int(currentPosition.getX()) == dump_x) and (int(currentPosition.getY()))  == dump_y):
-                perimeterIndex = random.randint(0, len(self.robotRoom.closePerimeter))
-                print('trying')
-                print(f'perimeter index: {self.robotRoom.closePerimeter[perimeterIndex]}')
-                perimeter_x, perimeter_y = self.robotRoom.closePerimeter[perimeterIndex]
-                endAngle = (math.atan2(dump_x - perimeter_x, dump_y - perimeter_y))
-                px, py, pangle = Dubins.getDubinsPath(dump_x, dump_y, startAngle, perimeter_x, perimeter_y, endAngle,
-                                                      currentPosition.turningRadius)
-                newPos = currentPosition.setPosition(px[-1], py[-1], pangle[-1])
-                self.robotPosition = newPos
-            else:
+                currentPosition = self.getRobotPosition()
+                constrainedPos = currentPosition.getConstrainedRandomPosition()
                 startDredgeArea = self.robotRoom.getNumCleanedTiles() / self.robotRoom.getNumTiles()
-                rand_pos = self.robotRoom.getRandomDredgePosition()
                 px, py, pangle = Dubins.getDubinsPath(currentPosition.getX(), currentPosition.getY(),
-                                                      currentPosition.getHeading(), rand_pos.getX(), rand_pos.getY(),
-                                                      math.radians(rand_pos.getHeading()), currentPosition.turningRadius)
-                print(len(px))
+                                                      currentPosition.getHeading(), constrainedPos.getX(),
+                                                      constrainedPos.getY(), math.radians(constrainedPos.getHeading()),
+                                                      currentPosition.turningRadius)
+                print(f'Length of path {len(px)}')
                 for i, tmp in enumerate(px):
                     if not self.robotRoom.isTileCleaned(tmp, py[i]):
                         self.robotRoom.dredgeTileAtPosition(tmp, py[i])
@@ -526,27 +542,146 @@ class ShipWithoutHold(BaseShip):
         newPos = currentPosition.setPosition(px[-1], py[-1], pangle[-1])
         self.robotPosition = newPos
         self.hold = 0
+
+class setDistanceWapoint(BaseShip):
+
+    '''
+    Parameters:
+    self.waypointSeperation = 10
+    self.nextAngleConstraint = 30
+    self.numOfWaypoints = 3
+    '''
+    def dumpToPerimeter(self):
+        dump_x, dump_y = self.robotRoom.dumpLoc
+        currentPosition = self.getRobotPosition()
+        startAngle = 225
+        perimeterIndex = random.randint(0, (len(self.robotRoom.closePerimeter) - 1))
+        perimeter_x, perimeter_y = self.robotRoom.closePerimeter[perimeterIndex]
+        endAngle = (math.atan2(dump_x - perimeter_x, dump_y - perimeter_y))
+        px, py, pangle = Dubins.getDubinsPath(dump_x, dump_y, startAngle, perimeter_x, perimeter_y, endAngle,
+                                              currentPosition.turningRadius)
+        newPos = currentPosition.setPosition(px, py, pangle)
+        self.robotPosition = newPos
+    def dredgeRoute(self):
+        currentPosition = self.getRobotPosition()
+        constrainedPos = currentPosition.getConstrainedRandomPosition()
+        px, py, pangle = Dubins.getDubinsPath(currentPosition.getX(), currentPosition.getY(),
+                                              currentPosition.getHeading(), constrainedPos.getX(),
+                                              constrainedPos.getY(), math.radians(constrainedPos.getHeading()),
+                                              currentPosition.turningRadius)
+        print(f'Length of path {len(px)}')
+        for i, tmp in enumerate(px):
+            if self.robotRoom.isTileDredgable and not self.robotRoom.isTileCleaned(tmp, py[i]):
+                self.robotRoom.dredgeTileAtPosition(tmp, py[i])
+                self.hold += 1
+        self.path.append(px, py, pangle)
+        newPos = currentPosition.setPosition(px, py, pangle)
+        self.robotPosition = newPos
+
+    def currentToPerimeter(self):
+        dump_x, dump_y = self.robotRoom.dumpLoc
+        currentPosition = self.getRobotPosition()
+        perimeterIndex = random.randint(0, (len(self.robotRoom.closePerimeter) - 1))
+        perimeter_x, perimeter_y = self.robotRoom.closePerimeter[perimeterIndex]
+        endAngle = (math.atan2(currentPosition.getX() - dump_x, currentPosition.getY() - dump_y))
+        px, py, pangle = Dubins.getDubinsPath(currentPosition.getX(), currentPosition.getY(),
+                                              currentPosition.getHeading(), perimeter_x, perimeter_y, endAngle,
+                                              currentPosition.turningRadius)
+        for i, tmp in enumerate(px):
+            if self.robotRoom.isTileDredgable and not self.robotRoom.isTileCleaned(tmp, py[i]):
+                self.robotRoom.dredgeTileAtPosition(tmp, py[i])
+                self.hold += 1
+        self.path.append(px, py, pangle)
+        newPos = currentPosition.setPosition(px, py, pangle)
+        self.robotPosition = newPos
+
+    def perimeterToDump(self):
+        dump_x, dump_y = self.robotRoom.dumpLoc
+        currentPosition = self.getRobotPosition()
+        endAngle = (math.atan2(currentPosition.getX() - dump_x, currentPosition.getY() - dump_y))
+        px, py, pangle = Dubins.getDubinsPath(currentPosition.getX(), currentPosition.getY(),
+                                              currentPosition.getHeading(), dump_x, dump_y, endAngle,
+                                              currentPosition.turningRadius)
+        self.path.append(px, py, pangle)
+        newPos = currentPosition.setPosition(px, py, pangle)
+        self.robotPosition = newPos
+        self.hold = 0
+
+class randomWaypoint(BaseShip):
+
+    '''
+    Parameters:
+    self.waypointSeperation = 10
+    self.nextAngleConstraint = 30
+    self.numOfWaypoints = 3
+    '''
+
     def findAllroutes(self):
+        dump_x, dump_y = self.robotRoom.dumpLoc
+        startAngle = 225 #TODO: make this a dependent vairable based on location youre heading to.
         currentPosition = self.getRobotPosition()
         startDredgeArea = self.robotRoom.getNumCleanedTiles() / self.robotRoom.getNumTiles()
-        perimeterIndex = random.rand(0, len(self.robotRoom.dredgePerimeter))
-        px, py, pangle = Dubins.getDubinsPath(currentPosition.getX(), currentPosition.getY(),
+        for _ in range (self.numOfWaypoints):
+            px, py, pangle = Dubins.getDubinsPath(currentPosition.getX(), currentPosition.getY(),
                                               currentPosition.getHeading(),
                                               random.randint(0, self.robotRoom.dredgeAreaWidth),
                                               random.randint(self.robotRoom.dredgeAreaHeight,
                                                              self.robotRoom.roomHeight),
                                               math.radians(random.random(0,360)), currentPosition.turningRadius)
-        for i in range(px):
-            if not self.robotRoom.isTileCleaned(px[i], py[i]):
-                self.robotRoom.dredgeTileAtPosition(px[i], py[i])
-        newDredgeArea = self.robotRoom.getNumCleanedTiles() / self.robotRoom.getNumTiles()
-        self.path.append([startDredgeArea-newDredgeArea, px, py, pangle])
+            if not self.isHoldFull(self.hold):
+                for i in range(px):
+                    if self.robotRoom.isTileDredgable(px[i], py[i]):
+                        if not self.robotRoom.isTileCleaned(px[i], py[i]):
+                            self.robotRoom.dredgeTileAtPosition(px[i], py[i])
+            newDredgeArea = self.robotRoom.getNumCleanedTiles() / self.robotRoom.getNumTiles()
+            self.path.append([px, py, pangle])
+            self.pathDredgePercentage.append(startDredgeArea-newDredgeArea)
+            newPos = currentPosition.setPosition(px[-1], py[-1], pangle[-1])
+            self.robotPosition = newPos
+        currentPosition = self.getRobotPosition()
+        endAngle = (math.atan2(currentPosition.getX() - dump_x, currentPosition.getY() - dump_y))
+        px, py, pangle = Dubins.getDubinsPath(currentPosition.getX(), currentPosition.getY(),
+                                              currentPosition.getHeading(), dump_x, dump_y, endAngle,
+                                              currentPosition.turningRadius)
+
         newPos = currentPosition.setPosition(px[-1], py[-1], pangle[-1])
         self.robotPosition = newPos
+        self.hold = 0
+def generatePaths(speed, width, height, min_coverage, num_trials, robot_type, visualize):
 
 
+    trialsCollection = []  # list to hold lists of date from each trial
+    pathCollection = []
+    for m in range(num_trials):  # for each trial
+        tmpCollection = []
+        # print "Trial %i:" % m,
+        if visualize: anim = ps11_visualize.RobotVisualization(width, height, int(width/2), int(height/2), .02)
+        # create the room
+        testRoom = RectangularRoom(width, height)
+        testRoom.createDredgingLocations()
+        testRoom.getPerimeter()
+        robot = robot_type(testRoom, speed, testRoom.dredgeArea)
 
+        # initialize for this trial
+        percentClean = 0.0000000
+        progressList = []
+        while percentClean < min_coverage:  # clean until percent clean >= min coverage
+            if visualize: anim.update(testRoom, [robot])
+            robot.dumpToPerimeter()
+            robot.dredgeRoute()
+            robot.currentToPerimeter()
+            robot.perimeterToDump()
+            percentClean = float(testRoom.getNumCleanedTiles()) / float(testRoom.getNumTiles())
+            progressList.append(percentClean)
+            tmpCollection.append(robot.path)
+        if visualize: anim.done()
+        trialsCollection.append(progressList)
+        pathCollection.append(tmpCollection)
 
+            # print "%i robot(s) took %i clock-ticks to clean %i %% of a %ix%i room." %(num_robots, len(progressList), int(min_coverage * 100), width, height)
+        # averageOfTrials = calcAvgLengthList(trialsCollection)
+        # print "On average, the %i robot(s) took %i clock ticks to %f clean a %i x %i room." %(num_robots, int(averageOfTrials), min_coverage, width, height)
+        return trialsCollection
 
 def createPathSimulation(num_robots, speed, width, height, min_coverage, num_trials, robot_type, visualize):
 
@@ -872,7 +1007,9 @@ def showPlot1A():
 #
 print("simulation 2")
 # RobotAvg = runSimulation(1, 0.1, 100, 100, 0.9, 1, DynamicsTest, True)
-RobotAvg = createPathSimulation(1, 0.5, 30, 30, 0.9, 1, ShipWithoutHold, False)
+RobotAvg = generatePaths(0.5, 70, 70, 0.9, 1, setDistanceWapoint, False)
+with open('Paths.txt', 'w') as f:
+    csv.writer(f, delimiter=' ').writerows(RobotAvg)
 # print "simulation 2.1 "
 #
 # RandomWalkRobotAvg = runSimulation(1, 1.0, 10, 10, 0.9, 1, RandomWalkRobot, False)
