@@ -564,7 +564,7 @@ class setDistanceWapoint(BaseShip):
         self.robotPosition = newPos
     def dredgeRoute(self):
         currentPosition = self.getRobotPosition()
-        constrainedPos = currentPosition.getConstrainedRandomPosition()
+        constrainedPos = currentPosition.getConstrainedRandomPosition(self.robotSpeed, self.waypointSeperation, self.nextAngleConstraint)
         px, py, pangle = Dubins.getDubinsPath(currentPosition.getX(), currentPosition.getY(),
                                               currentPosition.getHeading(), constrainedPos.getX(),
                                               constrainedPos.getY(), math.radians(constrainedPos.getHeading()),
