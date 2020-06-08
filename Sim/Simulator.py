@@ -140,10 +140,10 @@ class Position(object):
         return random.randrange(-constraint, constraint)
 
     def getConstrainedRandomPosition(self, pos, loc_constraint, angle_constraint):
-        x = pos.getX
-        y = pos.getY
-        angle = pos.getHeading
-        new_x = random.randint(x - loc_constraint, x + loc_constraint)
+        x = int(pos.getX())
+        y = int(pos.getY())
+        angle = pos.getHeading()
+        new_x = random.randint(x - loc_constraint, x + loc_constraint) #TODO: seperation of constant rate
         new_y = random.randint(y - loc_constraint, y + loc_constraint)
         new_angle = (math.atan2(x - new_x, y - new_y))
         return Position(new_x, new_y, new_angle)
@@ -560,11 +560,12 @@ class setDistanceWapoint(BaseShip):
         endAngle = (math.atan2(dump_x - perimeter_x, dump_y - perimeter_y))
         px, py, pangle = Dubins.getDubinsPath(dump_x, dump_y, startAngle, perimeter_x, perimeter_y, endAngle,
                                               currentPosition.turningRadius)
-        newPos = currentPosition.setPosition(px, py, pangle)
+        newPos = currentPosition.setPosition(px[-1], py[-1], pangle[-1])
         self.robotPosition = newPos
     def dredgeRoute(self):
         currentPosition = self.getRobotPosition()
-        constrainedPos = currentPosition.getConstrainedRandomPosition(self.robotSpeed, self.waypointSeperation, self.nextAngleConstraint)
+
+        constrainedPos = currentPosition.getConstrainedRandomPosition(currentPosition, self.waypointSeperation, self.nextAngleConstraint)
         px, py, pangle = Dubins.getDubinsPath(currentPosition.getX(), currentPosition.getY(),
                                               currentPosition.getHeading(), constrainedPos.getX(),
                                               constrainedPos.getY(), math.radians(constrainedPos.getHeading()),
@@ -575,7 +576,7 @@ class setDistanceWapoint(BaseShip):
                 self.robotRoom.dredgeTileAtPosition(tmp, py[i])
                 self.hold += 1
         self.path.append(px, py, pangle)
-        newPos = currentPosition.setPosition(px, py, pangle)
+        newPos = currentPosition.setPosition(px[-1], py[-1], pangle[-1])
         self.robotPosition = newPos
 
     def currentToPerimeter(self):
@@ -592,7 +593,7 @@ class setDistanceWapoint(BaseShip):
                 self.robotRoom.dredgeTileAtPosition(tmp, py[i])
                 self.hold += 1
         self.path.append(px, py, pangle)
-        newPos = currentPosition.setPosition(px, py, pangle)
+        newPos = currentPosition.setPosition(px[-1], py[-1], pangle[-1])
         self.robotPosition = newPos
 
     def perimeterToDump(self):
@@ -603,7 +604,7 @@ class setDistanceWapoint(BaseShip):
                                               currentPosition.getHeading(), dump_x, dump_y, endAngle,
                                               currentPosition.turningRadius)
         self.path.append(px, py, pangle)
-        newPos = currentPosition.setPosition(px, py, pangle)
+        newPos = currentPosition.setPosition(px[-1], py[-1], pangle[-1])
         self.robotPosition = newPos
         self.hold = 0
 
