@@ -560,6 +560,7 @@ class setDistanceWapoint(BaseShip):
         endAngle = (math.atan2(dump_x - perimeter_x, dump_y - perimeter_y))
         px, py, pangle = Dubins.getDubinsPath(dump_x, dump_y, startAngle, perimeter_x, perimeter_y, endAngle,
                                               currentPosition.turningRadius)
+        self.path.append([px, py, pangle])
         newPos = currentPosition.setPosition(px[-1], py[-1], pangle[-1])
         self.robotPosition = newPos
     def dredgeRoute(self):
@@ -575,9 +576,10 @@ class setDistanceWapoint(BaseShip):
             if self.robotRoom.isTileDredgable and not self.robotRoom.isTileCleaned(tmp, py[i]):
                 self.robotRoom.dredgeTileAtPosition(tmp, py[i])
                 self.hold += 1
-        self.path.append(px, py, pangle)
+        self.path.append([px, py, pangle])
         newPos = currentPosition.setPosition(px[-1], py[-1], pangle[-1])
         self.robotPosition = newPos
+        return px, py, pangle
 
     def currentToPerimeter(self):
         dump_x, dump_y = self.robotRoom.dumpLoc
@@ -592,18 +594,19 @@ class setDistanceWapoint(BaseShip):
             if self.robotRoom.isTileDredgable and not self.robotRoom.isTileCleaned(tmp, py[i]):
                 self.robotRoom.dredgeTileAtPosition(tmp, py[i])
                 self.hold += 1
-        self.path.append(px, py, pangle)
+        self.path.append([px, py, pangle])
         newPos = currentPosition.setPosition(px[-1], py[-1], pangle[-1])
         self.robotPosition = newPos
+        return px, py, pangle
 
-    def perimeterToDump(self):
+    def toDump(self):
         dump_x, dump_y = self.robotRoom.dumpLoc
         currentPosition = self.getRobotPosition()
         endAngle = (math.atan2(currentPosition.getX() - dump_x, currentPosition.getY() - dump_y))
         px, py, pangle = Dubins.getDubinsPath(currentPosition.getX(), currentPosition.getY(),
                                               currentPosition.getHeading(), dump_x, dump_y, endAngle,
                                               currentPosition.turningRadius)
-        self.path.append(px, py, pangle)
+        self.path.append([px, py, pangle])
         newPos = currentPosition.setPosition(px[-1], py[-1], pangle[-1])
         self.robotPosition = newPos
         self.hold = 0
@@ -653,8 +656,11 @@ def generatePaths(speed, width, height, min_coverage, num_trials, robot_type, vi
 
     trialsCollection = []  # list to hold lists of date from each trial
     pathCollection = []
+    coveragePath =[]
     for m in range(num_trials):  # for each trial
         tmpCollection = []
+        tmpCoverage = []
+        tmpDredgeRoute =[]
         # print "Trial %i:" % m,
         if visualize: anim = ps11_visualize.RobotVisualization(width, height, int(width/2), int(height/2), .02)
         # create the room
@@ -669,20 +675,23 @@ def generatePaths(speed, width, height, min_coverage, num_trials, robot_type, vi
         while percentClean < min_coverage:  # clean until percent clean >= min coverage
             if visualize: anim.update(testRoom, [robot])
             robot.dumpToPerimeter()
-            robot.dredgeRoute()
-            robot.currentToPerimeter()
-            robot.perimeterToDump()
+            for _ in range(robot.numOfWaypoints):
+                tmpDredgeRoute = robot.dredgeRoute()
+                tmpCoverage.append([tmpDredgeRoute])
+            # robot.currentToPerimeter()
+            robot.toDump()
             percentClean = float(testRoom.getNumCleanedTiles()) / float(testRoom.getNumTiles())
             progressList.append(percentClean)
             tmpCollection.append(robot.path)
         if visualize: anim.done()
         trialsCollection.append(progressList)
+        coveragePath.append(tmpCoverage)
         pathCollection.append(tmpCollection)
 
             # print "%i robot(s) took %i clock-ticks to clean %i %% of a %ix%i room." %(num_robots, len(progressList), int(min_coverage * 100), width, height)
         # averageOfTrials = calcAvgLengthList(trialsCollection)
         # print "On average, the %i robot(s) took %i clock ticks to %f clean a %i x %i room." %(num_robots, int(averageOfTrials), min_coverage, width, height)
-        return trialsCollection
+        return trialsCollection, pathCollection
 
 def createPathSimulation(num_robots, speed, width, height, min_coverage, num_trials, robot_type, visualize):
 
