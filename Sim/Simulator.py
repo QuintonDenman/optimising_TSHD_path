@@ -523,7 +523,6 @@ class PerimeterSetDistance(BaseShip):
                                                       currentPosition.getHeading(), constrainedPos.getX(),
                                                       constrainedPos.getY(), math.radians(constrainedPos.getHeading()),
                                                       currentPosition.turningRadius)
-                print(f'Length of path {len(px)}')
                 for i, tmp in enumerate(px):
                     if not self.robotRoom.isTileCleaned(tmp, py[i]):
                         self.robotRoom.dredgeTileAtPosition(tmp, py[i])
@@ -571,7 +570,6 @@ class setDistanceWapoint(BaseShip):
                                               currentPosition.getHeading(), constrainedPos.getX(),
                                               constrainedPos.getY(), math.radians(constrainedPos.getHeading()),
                                               currentPosition.turningRadius)
-        print(f'Length of path {len(px)}')
         for i, tmp in enumerate(px):
             if self.robotRoom.isTileDredgable and not self.robotRoom.isTileCleaned(tmp, py[i]):
                 self.robotRoom.dredgeTileAtPosition(tmp, py[i])
@@ -651,47 +649,49 @@ class randomWaypoint(BaseShip):
         newPos = currentPosition.setPosition(px[-1], py[-1], pangle[-1])
         self.robotPosition = newPos
         self.hold = 0
-def generatePaths(speed, width, height, min_coverage, num_trials, robot_type, visualize):
+def generatePaths(speed, width, height, min_coverage, robot_type, visualize):
 
-
-    trialsCollection = []  # list to hold lists of date from each trial
+    # trialsCollection = []  # list to hold lists of date from each trial
     pathCollection = []
     coveragePath =[]
-    for m in range(num_trials):  # for each trial
-        tmpCollection = []
-        tmpCoverage = []
-        tmpDredgeRoute =[]
-        # print "Trial %i:" % m,
-        if visualize: anim = ps11_visualize.RobotVisualization(width, height, int(width/2), int(height/2), .02)
-        # create the room
-        testRoom = RectangularRoom(width, height)
-        testRoom.createDredgingLocations()
-        testRoom.getPerimeter()
-        robot = robot_type(testRoom, speed, testRoom.dredgeArea)
+    tmpCollection = []
+    tmpCoverage = []
+    # tmpDredgeRoute =[]
+    # print "Trial %i:" % m,
+    if visualize: anim = ps11_visualize.RobotVisualization(width, height, int(width/2), int(height/2), .02)
+    # create the room
+    testRoom = RectangularRoom(width, height)
+    testRoom.createDredgingLocations()
+    testRoom.getPerimeter()
+    robot = robot_type(testRoom, speed, testRoom.dredgeArea)
 
-        # initialize for this trial
-        percentClean = 0.0000000
-        progressList = []
-        while percentClean < min_coverage:  # clean until percent clean >= min coverage
-            if visualize: anim.update(testRoom, [robot])
-            robot.dumpToPerimeter()
-            for _ in range(robot.numOfWaypoints):
-                tmpDredgeRoute = robot.dredgeRoute()
-                tmpCoverage.append([tmpDredgeRoute])
-            # robot.currentToPerimeter()
-            robot.toDump()
-            percentClean = float(testRoom.getNumCleanedTiles()) / float(testRoom.getNumTiles())
-            progressList.append(percentClean)
-            tmpCollection.append(robot.path)
-        if visualize: anim.done()
-        trialsCollection.append(progressList)
-        coveragePath.append(tmpCoverage)
-        pathCollection.append(tmpCollection)
+    # initialize for this trial
+    percentClean = 0.0000000
+    progressList = []
+    numberOfCurves = 0
+    while percentClean < min_coverage:  # clean until percent clean >= min coverage
+        if visualize: anim.update(testRoom, [robot])
+        robot.dumpToPerimeter()
+        for _ in range(robot.numOfWaypoints):
+            tmpDredgeRoute = robot.dredgeRoute()
+            tmpCoverage.append([tmpDredgeRoute]) #just the coverage of the dredging area
+        # robot.currentToPerimeter()
+        robot.toDump()
+        numberOfCurves += 1
+        percentClean = float(testRoom.getNumCleanedTiles()) / float(testRoom.getNumTiles())
+        # print(f'percent cleaned: {percentClean}')
+        # progressList.append(percentClean)
+        tmpCollection.append(robot.path) #Path is the entire route from start to end
+    if visualize: anim.done()
+    print('Im Here')
+    # trialsCollection.append(progressList)
+    coveragePath.append(tmpCoverage)
+    pathCollection.append(tmpCollection)
 
-            # print "%i robot(s) took %i clock-ticks to clean %i %% of a %ix%i room." %(num_robots, len(progressList), int(min_coverage * 100), width, height)
-        # averageOfTrials = calcAvgLengthList(trialsCollection)
-        # print "On average, the %i robot(s) took %i clock ticks to %f clean a %i x %i room." %(num_robots, int(averageOfTrials), min_coverage, width, height)
-        return trialsCollection, pathCollection
+        # print "%i robot(s) took %i clock-ticks to clean %i %% of a %ix%i room." %(num_robots, len(progressList), int(min_coverage * 100), width, height)
+    # averageOfTrials = calcAvgLengthList(trialsCollection)
+    # print "On average, the %i robot(s) took %i clock ticks to %f clean a %i x %i room." %(num_robots, int(averageOfTrials), min_coverage, width, height)
+    return numberOfCurves, pathCollection
 
 def createPathSimulation(num_robots, speed, width, height, min_coverage, num_trials, robot_type, visualize):
 
@@ -1017,9 +1017,13 @@ def showPlot1A():
 #
 print("simulation 2")
 # RobotAvg = runSimulation(1, 0.1, 100, 100, 0.9, 1, DynamicsTest, True)
-RobotAvg = generatePaths(0.5, 70, 70, 0.9, 1, setDistanceWapoint, False)
+familyOfCurves = []
+for _ in range(10):
+    RobotAvg = generatePaths(0.5, 70, 70, 0.9, setDistanceWapoint, False)
+    familyOfCurves.append([RobotAvg])
+
 with open('Paths.txt', 'w') as f:
-    csv.writer(f, delimiter=' ').writerows(RobotAvg)
+    csv.writer(f, delimiter=' ').writerows(familyOfCurves)
 # print "simulation 2.1 "
 #
 # RandomWalkRobotAvg = runSimulation(1, 1.0, 10, 10, 0.9, 1, RandomWalkRobot, False)
