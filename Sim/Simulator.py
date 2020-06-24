@@ -2,13 +2,23 @@ import math
 import random
 import os, sys, csv
 import Sim.ps11_visualize
-import Sim.Astar
+import numpy as np
+from skopt import Optimizer
+import pandas as pd
+from skopt.space import Real, Integer
+from skopt.utils import use_named_args
 from pylab import plot, axis, title, ylabel, xlabel, show
-
-from Sim.Astar import astar
+import csv
+from csv import writer
 from Sim import ps11_visualize
 import time
 from Sim import Dubins
+from Sim import SimulatedAnealing
+import gc
+from datetime import datetime
+from bayes_opt import BayesianOptimization
+
+
 class Position(object):
     """
     A Position represents a location in a two-dimensional room.
@@ -37,11 +47,15 @@ class Position(object):
     def getHeading(self):
         return self.heading
 
+    def getPos(self):
+        return int(self.x), int(self.y)
+
     def setHeading(self, angle):
         self.heading = angle
 
     def setPosition(self, x, y, angle):
         return Position(x, y, angle)
+
 
     # def getNewPosition(self, angle, speed):
     #     """
@@ -143,8 +157,8 @@ class Position(object):
         x = int(pos.getX())
         y = int(pos.getY())
         angle = pos.getHeading()
-        new_x = random.randint(x - loc_constraint, x + loc_constraint) #TODO: seperation of constant rate
-        new_y = random.randint(y - loc_constraint, y + loc_constraint)
+        new_x = random.randint(max(x - loc_constraint, 0), min(x + loc_constraint, 70)) #TODO: fix hardcoded dimension
+        new_y = random.randint(max(y - loc_constraint, 0), min(y + loc_constraint, 70))
         new_angle = (math.atan2(x - new_x, y - new_y))
         return Position(new_x, new_y, new_angle)
 
@@ -333,7 +347,8 @@ class BaseShip(object):
     time1-step.
     """
 
-    def __init__(self, room, speed, dredgeArea):
+    def __init__(self, room, speed, waypointSeperation, nextAngleConstraint,
+        numOfWaypoints):
         """
         Initializes a Robot with the given speed in the specified
         room. The robot initially has a random direction d and a
@@ -358,9 +373,9 @@ class BaseShip(object):
         self.environmentForce = 1
         self.environmentForceDirection = 0
         #parameters
-        self.waypointSeperation = 10
-        self.nextAngleConstraint = 30
-        self.numOfWaypoints = 2
+        self.waypointSeperation = waypointSeperation
+        self.nextAngleConstraint = nextAngleConstraint
+        self.numOfWaypoints = numOfWaypoints
 
     def getRobotPosition(self):
         """
@@ -391,43 +406,6 @@ class BaseShip(object):
         if hold >= self.holdCapacity:
             return True
         return False
-
-
-
-
-class Robot(BaseShip):
-    """
-    A Robot is a BaseRobot with the standard movement strategy.
-
-    At each time1-step, a Robot attempts to move in its current
-    direction; when it hits a wall, it chooses a new direction
-    randomly.
-    """
-
-    def updatePositionAndClean(self):
-        """
-        Simulate the passage of a single time1-step.
-
-        Move the robot to a new position and if tile is in the dredgable zone mark the tile as having
-        been cleaned.
-        """
-
-        notAtWall = True
-
-        while notAtWall:
-            currentPosition = self.getRobotPosition()
-            # print "\ncurrent robot position: %s" % currentPosition
-            # print "current robot position: %s" % self.getRobotPosition()
-            nextPosition = currentPosition.getNewPosition(self.getRobotDirection(), self.robotSpeed)
-            if self.robotRoom.isPositionInRoom(nextPosition):
-                self.robotPosition = nextPosition
-                # tell room this tile is clean
-                if self.robotRoom.isTileDredgable(self.robotPosition) and not self.robotRoom.isTileCleaned(self.robotPosition.getX(), self.robotPosition.getY()):
-                    self.robotRoom.dredgeTileAtPosition(self.robotPosition)
-                notAtWall = False
-            else:  # pick a new direction at random
-                self.robotDirection = random.randint(0, 360)
-
 
 class RandomAstarShip(BaseShip):
     """
@@ -520,7 +498,7 @@ class PerimeterSetDistance(BaseShip):
                 constrainedPos = currentPosition.getConstrainedRandomPosition()
                 startDredgeArea = self.robotRoom.getNumCleanedTiles() / self.robotRoom.getNumTiles()
                 px, py, pangle = Dubins.getDubinsPath(currentPosition.getX(), currentPosition.getY(),
-                                                      currentPosition.getHeading(), constrainedPos.getX(),
+                                                      math.radians(currentPosition.getHeading()), constrainedPos.getX(),
                                                       constrainedPos.getY(), math.radians(constrainedPos.getHeading()),
                                                       currentPosition.turningRadius)
                 for i, tmp in enumerate(px):
@@ -564,18 +542,37 @@ class setDistanceWapoint(BaseShip):
         self.robotPosition = newPos
     def dredgeRoute(self):
         currentPosition = self.getRobotPosition()
-
-        constrainedPos = currentPosition.getConstrainedRandomPosition(currentPosition, self.waypointSeperation, self.nextAngleConstraint)
+        constrainedPos = currentPosition.getConstrainedRandomPosition(currentPosition, self.waypointSeperation,
+                                                                      self.nextAngleConstraint)
+        while int(currentPosition.getX()) == int(constrainedPos.getX()) and \
+                int(currentPosition.getY()) == int(constrainedPos.getY()):
+            constrainedPos = currentPosition.getConstrainedRandomPosition(currentPosition, self.waypointSeperation,
+                                                                          self.nextAngleConstraint)
+            print("it actually happened")
         px, py, pangle = Dubins.getDubinsPath(currentPosition.getX(), currentPosition.getY(),
-                                              currentPosition.getHeading(), constrainedPos.getX(),
+                                              math.radians(currentPosition.getHeading()), constrainedPos.getX(),
                                               constrainedPos.getY(), math.radians(constrainedPos.getHeading()),
                                               currentPosition.turningRadius)
-        for i, tmp in enumerate(px):
-            if self.robotRoom.isTileDredgable and not self.robotRoom.isTileCleaned(tmp, py[i]):
-                self.robotRoom.dredgeTileAtPosition(tmp, py[i])
-                self.hold += 1
+        if not self.isHoldFull(self.hold):
+            for i, tmp in enumerate(px):
+                if self.robotRoom.isTileDredgable and not self.robotRoom.isTileCleaned(tmp, py[i]):
+                    self.robotRoom.dredgeTileAtPosition(tmp, py[i])
+                    self.hold += 1
         self.path.append([px, py, pangle])
-        newPos = currentPosition.setPosition(px[-1], py[-1], pangle[-1])
+
+        try:
+            newPos = currentPosition.setPosition(px[-1], py[-1], pangle[-1])
+        except IndexError:
+            # print(f'current: {currentPosition.getPos()} \n'
+            #       f'planned: {constrainedPos.getPos()}')
+            print(f'currentPosition.getX(): {currentPosition.getX()} \n'
+                  f'currentPosition.getY(): {currentPosition.getY()} \n'
+                  f'currentPosition.getHeading(): {currentPosition.getHeading()} \n'
+                  f'constrainedPos.getX(): {constrainedPos.getX()} \n'
+                  f'constrainedPos.getY(): {constrainedPos.getY()} \n'
+                  f'constrainedPos.getHeading(): {constrainedPos.getHeading()}')
+            if len(px) == 0: newPos = currentPosition.setPosition(constrainedPos.getX(), py[-1], pangle[-1])
+            elif len(py) == 0: newPos = currentPosition.setPosition(px[-1], constrainedPos.getY(), pangle[-1])
         self.robotPosition = newPos
         return px, py, pangle
 
@@ -588,10 +585,11 @@ class setDistanceWapoint(BaseShip):
         px, py, pangle = Dubins.getDubinsPath(currentPosition.getX(), currentPosition.getY(),
                                               currentPosition.getHeading(), perimeter_x, perimeter_y, endAngle,
                                               currentPosition.turningRadius)
-        for i, tmp in enumerate(px):
-            if self.robotRoom.isTileDredgable and not self.robotRoom.isTileCleaned(tmp, py[i]):
-                self.robotRoom.dredgeTileAtPosition(tmp, py[i])
-                self.hold += 1
+        if not self.isHoldFull(self.hold):
+            for i, tmp in enumerate(px):
+                if self.robotRoom.isTileDredgable and not self.robotRoom.isTileCleaned(tmp, py[i]):
+                    self.robotRoom.dredgeTileAtPosition(tmp, py[i])
+                    self.hold += 1
         self.path.append([px, py, pangle])
         newPos = currentPosition.setPosition(px[-1], py[-1], pangle[-1])
         self.robotPosition = newPos
@@ -604,6 +602,11 @@ class setDistanceWapoint(BaseShip):
         px, py, pangle = Dubins.getDubinsPath(currentPosition.getX(), currentPosition.getY(),
                                               currentPosition.getHeading(), dump_x, dump_y, endAngle,
                                               currentPosition.turningRadius)
+        if not self.isHoldFull(self.hold):
+            for i, tmp in enumerate(px):
+                if self.robotRoom.isTileDredgable and not self.robotRoom.isTileCleaned(tmp, py[i]):
+                    self.robotRoom.dredgeTileAtPosition(tmp, py[i])
+                    self.hold += 1
         self.path.append([px, py, pangle])
         newPos = currentPosition.setPosition(px[-1], py[-1], pangle[-1])
         self.robotPosition = newPos
@@ -649,9 +652,9 @@ class randomWaypoint(BaseShip):
         newPos = currentPosition.setPosition(px[-1], py[-1], pangle[-1])
         self.robotPosition = newPos
         self.hold = 0
-def generatePaths(speed, width, height, min_coverage, robot_type, visualize):
+def generatePaths(speed, width, height, min_coverage, robot_type, visualize, waypointSeperation, nextAngleConstraint,
+        numOfWaypoints):
 
-    # trialsCollection = []  # list to hold lists of date from each trial
     pathCollection = []
     coveragePath =[]
     tmpCollection = []
@@ -663,7 +666,8 @@ def generatePaths(speed, width, height, min_coverage, robot_type, visualize):
     testRoom = RectangularRoom(width, height)
     testRoom.createDredgingLocations()
     testRoom.getPerimeter()
-    robot = robot_type(testRoom, speed, testRoom.dredgeArea)
+    robot = robot_type(testRoom, speed, int(waypointSeperation), nextAngleConstraint,
+        int(numOfWaypoints))
 
     # initialize for this trial
     percentClean = 0.0000000
@@ -673,19 +677,20 @@ def generatePaths(speed, width, height, min_coverage, robot_type, visualize):
         if visualize: anim.update(testRoom, [robot])
         robot.dumpToPerimeter()
         for _ in range(robot.numOfWaypoints):
-            tmpDredgeRoute = robot.dredgeRoute()
-            tmpCoverage.append([tmpDredgeRoute]) #just the coverage of the dredging area
+            robot.dredgeRoute()
+            # tmpDredgeRoute = robot.dredgeRoute()
+            # tmpCoverage.append([tmpDredgeRoute]) #just the coverage of the dredging area
         # robot.currentToPerimeter()
         robot.toDump()
         numberOfCurves += 1
         percentClean = float(testRoom.getNumCleanedTiles()) / float(testRoom.getNumTiles())
+        # print(f'percent clean {percentClean}')
         # print(f'percent cleaned: {percentClean}')
         # progressList.append(percentClean)
         tmpCollection.append(robot.path) #Path is the entire route from start to end
     if visualize: anim.done()
-    print('Im Here')
     # trialsCollection.append(progressList)
-    coveragePath.append(tmpCoverage)
+    # coveragePath.append(tmpCoverage)
     pathCollection.append(tmpCollection)
 
         # print "%i robot(s) took %i clock-ticks to clean %i %% of a %ix%i room." %(num_robots, len(progressList), int(min_coverage * 100), width, height)
@@ -693,7 +698,7 @@ def generatePaths(speed, width, height, min_coverage, robot_type, visualize):
     # print "On average, the %i robot(s) took %i clock ticks to %f clean a %i x %i room." %(num_robots, int(averageOfTrials), min_coverage, width, height)
     return numberOfCurves, pathCollection
 
-def createPathSimulation(num_robots, speed, width, height, min_coverage, num_trials, robot_type, visualize):
+def createPathSimulation(num_robots, speed, width, height, num_trials, robot_type, visualize, ):
 
 
     trialsCollection = []  # list to hold lists of date from each trial
@@ -1009,38 +1014,59 @@ def showPlot1A():
     xlabel("Room area")
     show()
 
+def saveBest(pathout, filename ,value):
+    try:
+        with open(pathout+filename, 'a+', newline='') as sb:
+            csvWriter = csv.writer(sb)
+            csvWriter.writerow(value)
+            print('wrote')
+    except IOError:
+        print('not writable')
+        print(pathout+filename)
 
 # === Run code
-# def runSimulation(num_robots, speed, width, height, min_coverage, num_trials,robot_type, visualize):
-# print("Simulation 1:")
-# avg = runSimulation(1, 1.0, 25, 20, 0.8, 70, Robot, False)
-#
-print("simulation 2")
-# RobotAvg = runSimulation(1, 0.1, 100, 100, 0.9, 1, DynamicsTest, True)
-familyOfCurves = []
-for _ in range(10):
-    RobotAvg = generatePaths(0.5, 70, 70, 0.9, setDistanceWapoint, False)
-    familyOfCurves.append([RobotAvg])
+setSize = 100
+# (speed, width, height, min_coverage, robot_type, visualize, waypointSeperation, nextAngleConstraint, numOfWaypoints):
+iterator = 0
+def mainLoop(waypointSeperation, numOfWaypoints):
+    print("Running Simulation")
+    focPath = 'C:\\Users\\denma\\Documents\\Uni\Thesis\\Simulator\\optimising_TSHD_path\\Sim\FamilyofCurves\\'
+    bestPath = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\BestPath\\'
+    curveScores = []
+    now = datetime.now()
+    dt_string = now.strftime("%d-%m-%H-%M-%S")
+    for k in range(setSize):
+        print(f'set {k} of 100')
+        RobotAvg = generatePaths(0.5, 70, 70, 0.9, setDistanceWapoint, False, waypointSeperation, 30,
+            numOfWaypoints)
+        saveBest(focPath, dt_string, [RobotAvg[1]])
+        curveScores.append(RobotAvg[0])
+    # data, initialSolution, initialTemp, iterationLimit, finalTemp, tempReduction, neighborOperator,
+    # iterationPerTemp=100, alpha=10, beta=5)
+    gc.collect()
+    subsetSelection = SimulatedAnealing.SimulatedAnnealing(curveScores, int(setSize/2), -1, "linear")
+    print(f'number of random greedy searches: {int(setSize / 2)}')
+    best, index = subsetSelection.runGreedy()
+    print(index, best)
+    df = pd.read_csv(focPath+dt_string)
+    print(df.shape)
+    bestFamilyofCurves = df[index]
+    saveBest(bestPath, dt_string, )
+    return best
 
-with open('Paths.txt', 'w') as f:
-    csv.writer(f, delimiter=' ').writerows(familyOfCurves)
-# print "simulation 2.1 "
-#
-# RandomWalkRobotAvg = runSimulation(1, 1.0, 10, 10, 0.9, 1, RandomWalkRobot, False)
+pbounds = {'waypointSeperation': (1, 15), 'numOfWaypoints': (1, 15)}
+optimizer = BayesianOptimization(
+    f=mainLoop,
+    pbounds=pbounds,
+    random_state=1,
+)
 
-# print "simulation 3"
-# avg = runSimulation(1, 1.0, 20, 10, 0.9, 30, Robot, False)
-# print "simulation 4"
-# avg = runSimulation(1, 1.0, 40, 10, 0.9, 30, Robot, False)
-# print "simulation 5"
-# avg = runSimulation(1, 1.0, 80, 10, 0.9, 30, Robot, False)
+optimizer.maximize(
+    init_points=50,
+    n_iter=1000,
+)
+print(optimizer.max)
 
-# write_lists_csv(computeMeans(RobotAvg),"robot_means.csv", ["Means"])
-# write_lists_csv(computeMeans(RandomWalkRobotAvg),"rndRobot_means.csv", ["Means"])
-#
-# showPlot1()
-# showPlot2()
-# showPlot3()
-# showPlot4()
-# showPlot1A()
+# optSpace = [Integer(1, 15, name='waypointSeperation'), Integer(1, 15, name='numOfWapoints')]
 
+mainLoop(15,15)
