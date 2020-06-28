@@ -6,6 +6,8 @@ import numpy as np
 from skopt import Optimizer
 import pandas as pd
 from skopt.space import Real, Integer
+import skopt
+from skopt import gp_minimize
 from skopt.utils import use_named_args
 from pylab import plot, axis, title, ylabel, xlabel, show
 import csv
@@ -16,7 +18,8 @@ from Sim import Dubins
 from Sim import SimulatedAnealing
 import gc
 from datetime import datetime
-from bayes_opt import BayesianOptimization
+import tracemalloc
+
 
 
 class Position(object):
@@ -537,9 +540,10 @@ class setDistanceWapoint(BaseShip):
         endAngle = (math.atan2(dump_x - perimeter_x, dump_y - perimeter_y))
         px, py, pangle = Dubins.getDubinsPath(dump_x, dump_y, startAngle, perimeter_x, perimeter_y, endAngle,
                                               currentPosition.turningRadius)
-        self.path.append([px, py, pangle])
+        # self.path.append([px, py, pangle])
         newPos = currentPosition.setPosition(px[-1], py[-1], pangle[-1])
         self.robotPosition = newPos
+        return [px, py, pangle]
     def dredgeRoute(self):
         currentPosition = self.getRobotPosition()
         constrainedPos = currentPosition.getConstrainedRandomPosition(currentPosition, self.waypointSeperation,
@@ -548,17 +552,21 @@ class setDistanceWapoint(BaseShip):
                 int(currentPosition.getY()) == int(constrainedPos.getY()):
             constrainedPos = currentPosition.getConstrainedRandomPosition(currentPosition, self.waypointSeperation,
                                                                           self.nextAngleConstraint)
-            print("it actually happened")
-        px, py, pangle = Dubins.getDubinsPath(currentPosition.getX(), currentPosition.getY(),
+            # print("it actually happened")
+        try:
+            px, py, pangle = Dubins.getDubinsPath(currentPosition.getX(), currentPosition.getY(),
                                               math.radians(currentPosition.getHeading()), constrainedPos.getX(),
                                               constrainedPos.getY(), math.radians(constrainedPos.getHeading()),
                                               currentPosition.turningRadius)
+        except:
+            MemoryError
+            print(f'length of one dangle: { len(px)}')
         if not self.isHoldFull(self.hold):
             for i, tmp in enumerate(px):
                 if self.robotRoom.isTileDredgable and not self.robotRoom.isTileCleaned(tmp, py[i]):
                     self.robotRoom.dredgeTileAtPosition(tmp, py[i])
                     self.hold += 1
-        self.path.append([px, py, pangle])
+        # self.path.append([px, py, pangle])
 
         try:
             newPos = currentPosition.setPosition(px[-1], py[-1], pangle[-1])
@@ -574,7 +582,7 @@ class setDistanceWapoint(BaseShip):
             if len(px) == 0: newPos = currentPosition.setPosition(constrainedPos.getX(), py[-1], pangle[-1])
             elif len(py) == 0: newPos = currentPosition.setPosition(px[-1], constrainedPos.getY(), pangle[-1])
         self.robotPosition = newPos
-        return px, py, pangle
+        return [px, py, pangle]
 
     def currentToPerimeter(self):
         dump_x, dump_y = self.robotRoom.dumpLoc
@@ -585,15 +593,16 @@ class setDistanceWapoint(BaseShip):
         px, py, pangle = Dubins.getDubinsPath(currentPosition.getX(), currentPosition.getY(),
                                               currentPosition.getHeading(), perimeter_x, perimeter_y, endAngle,
                                               currentPosition.turningRadius)
+        print(len(px))
         if not self.isHoldFull(self.hold):
             for i, tmp in enumerate(px):
                 if self.robotRoom.isTileDredgable and not self.robotRoom.isTileCleaned(tmp, py[i]):
                     self.robotRoom.dredgeTileAtPosition(tmp, py[i])
                     self.hold += 1
-        self.path.append([px, py, pangle])
+        # self.path.append([px, py, pangle])
         newPos = currentPosition.setPosition(px[-1], py[-1], pangle[-1])
         self.robotPosition = newPos
-        return px, py, pangle
+        return [px, py, pangle]
 
     def toDump(self):
         dump_x, dump_y = self.robotRoom.dumpLoc
@@ -607,10 +616,11 @@ class setDistanceWapoint(BaseShip):
                 if self.robotRoom.isTileDredgable and not self.robotRoom.isTileCleaned(tmp, py[i]):
                     self.robotRoom.dredgeTileAtPosition(tmp, py[i])
                     self.hold += 1
-        self.path.append([px, py, pangle])
+        # self.path.append([px, py, pangle])
         newPos = currentPosition.setPosition(px[-1], py[-1], pangle[-1])
         self.robotPosition = newPos
         self.hold = 0
+        return [px, py, pangle]
 
 class randomWaypoint(BaseShip):
 
@@ -652,13 +662,26 @@ class randomWaypoint(BaseShip):
         newPos = currentPosition.setPosition(px[-1], py[-1], pangle[-1])
         self.robotPosition = newPos
         self.hold = 0
-def generatePaths(speed, width, height, min_coverage, robot_type, visualize, waypointSeperation, nextAngleConstraint,
-        numOfWaypoints):
 
-    pathCollection = []
-    coveragePath =[]
+def saveBest(pathout, filename ,value):
+    try:
+        with open(pathout+filename, 'a+', newline='') as sb:
+            csvWriter = csv.writer(sb)
+            csvWriter.writerow(value)
+            print('wrote')
+    # except IOError:
+    #     # print('not writable')
+    #     # print(pathout+filename)
+    except MemoryError:
+        print(len(value))
+
+
+def generatePaths(speed, width, height, min_coverage, robot_type, visualize, waypointSeperation, nextAngleConstraint,
+        numOfWaypoints, filename):
+
+    # coveragePath =[]
     tmpCollection = []
-    tmpCoverage = []
+    # tmpCoverage = []
     # tmpDredgeRoute =[]
     # print "Trial %i:" % m,
     if visualize: anim = ps11_visualize.RobotVisualization(width, height, int(width/2), int(height/2), .02)
@@ -671,32 +694,39 @@ def generatePaths(speed, width, height, min_coverage, robot_type, visualize, way
 
     # initialize for this trial
     percentClean = 0.0000000
-    progressList = []
     numberOfCurves = 0
-    while percentClean < min_coverage:  # clean until percent clean >= min coverage
+    # while percentClean < min_coverage:  # clean until percent clean >= min coverage
+    tmp = 0
+    while tmp < 20:
+        tmp += 1
         if visualize: anim.update(testRoom, [robot])
-        robot.dumpToPerimeter()
+        tracemalloc.start()
+        tmpCollection.append(robot.dumpToPerimeter())
         for _ in range(robot.numOfWaypoints):
-            robot.dredgeRoute()
+            tmpCollection.append(robot.dredgeRoute())
             # tmpDredgeRoute = robot.dredgeRoute()
             # tmpCoverage.append([tmpDredgeRoute]) #just the coverage of the dredging area
         # robot.currentToPerimeter()
-        robot.toDump()
+        tmpCollection.append(robot.toDump())
+        current, peak = tracemalloc.get_traced_memory()
+        print(f"Current memory usage is {current / 10 ** 6}MB; Peak was {peak / 10 ** 6}MB")
+        tracemalloc.stop()
         numberOfCurves += 1
         percentClean = float(testRoom.getNumCleanedTiles()) / float(testRoom.getNumTiles())
+
+        gc.collect()
         # print(f'percent clean {percentClean}')
         # print(f'percent cleaned: {percentClean}')
         # progressList.append(percentClean)
-        tmpCollection.append(robot.path) #Path is the entire route from start to end
+    print(percentClean)
     if visualize: anim.done()
     # trialsCollection.append(progressList)
     # coveragePath.append(tmpCoverage)
-    pathCollection.append(tmpCollection)
 
         # print "%i robot(s) took %i clock-ticks to clean %i %% of a %ix%i room." %(num_robots, len(progressList), int(min_coverage * 100), width, height)
     # averageOfTrials = calcAvgLengthList(trialsCollection)
     # print "On average, the %i robot(s) took %i clock ticks to %f clean a %i x %i room." %(num_robots, int(averageOfTrials), min_coverage, width, height)
-    return numberOfCurves, pathCollection
+    return numberOfCurves, tmpCollection
 
 def createPathSimulation(num_robots, speed, width, height, num_trials, robot_type, visualize, ):
 
@@ -748,325 +778,60 @@ def createPathSimulation(num_robots, speed, width, height, num_trials, robot_typ
     # print "On average, the %i robot(s) took %i clock ticks to %f clean a %i x %i room." %(num_robots, int(averageOfTrials), min_coverage, width, height)
     return trialsCollection
 
-def runSimulation(num_robots, speed, width, height, min_coverage, num_trials, robot_type, visualize):
-    """
-    Runs NUM_TRIALS trials of the simulation and returns a list of
-    lists, one per trial. The list for a trial has an element for each
-    timestep of that trial, the value of which is the percentage of
-    the room that is clean after that timestep. Each trial stops when
-    MIN_COVERAGE of the room is clean.
 
-    The simulation is run with NUM_ROBOTS robots of type ROBOT_TYPE,
-    each with speed SPEED, in a room of dimensions WIDTH x HEIGHT.
-
-    Visualization is turned on when boolean VISUALIZE is set to True.
-
-    num_robots: an int (num_robots > 0)
-    speed: a float (speed > 0)
-    width: an int (width > 0)
-    height: an int (height > 0)
-    min_coverage: a float (0 <= min_coverage <= 1.0)
-    num_trials: an int (num_trials > 0)
-    robot_type: class of robot to be instantiated (e.g. Robot or
-                RandomWalkRobot)
-    visualize: a boolean (True to turn on visualization)
-
-    test case:
-    avg = runSimulation(10, 1.0, 15, 20, 0.8, 30, Robot, False)
-
-    """
-    k = 5
-    trialsCollection = []  # list to hold lists of date from each trial
-    for m in range(num_trials):  # for each trial
-
-        # print "Trial %i:" % m,
-        if visualize: anim = ps11_visualize.RobotVisualization(num_robots, width, height, int(width / 2),
-                                                               int(height / 2), .02)
-        # create the room
-        testRoom = RectangularRoom(width, height)
-        testRoom.createDredgingLocations()
-        # create robots and put them in a list
-        robotList = []
-        for i in range(num_robots):
-            robotList.append(robot_type(testRoom, speed, testRoom.dredgeArea))
-
-        # initialize for this trial
-        percentClean = 0.0000000
-        progressList = []
-        initial_time = time.time()
-
-        while ((time.time()-initial_time) < k):
-            if visualize: anim.update(testRoom, robotList)
-            for eachRobot in robotList:  # for each time1-step make each robot clean
-                eachRobot.moveForward()
-        initial_time = time.time()
-        while ((time.time()-initial_time) < k):
-            if visualize: anim.update(testRoom, robotList)
-            for eachRobot in robotList:  # for each time1-step make each robot clean
-                eachRobot.moveLeft()
-        initial_time = time.time()
-        while ((time.time()-initial_time) < k):
-            if visualize: anim.update(testRoom, robotList)
-            for eachRobot in robotList:  # for each time1-step make each robot clean
-                eachRobot.moveForward()
-        initial_time = time.time()
-        while ((time.time()-initial_time) < k):
-            if visualize: anim.update(testRoom, robotList)
-            for eachRobot in robotList:  # for each time1-step make each robot clean
-                eachRobot.moveRight()
-        if visualize: anim.done()
-        trialsCollection.append(progressList)
-        # print "%i robot(s) took %i clock-ticks to clean %i %% of a %ix%i room." %(num_robots, len(progressList), int(min_coverage * 100), width, height)
-    # averageOfTrials = calcAvgLengthList(trialsCollection)
-    # print "On average, the %i robot(s) took %i clock ticks to %f clean a %i x %i room." %(num_robots, int(averageOfTrials), min_coverage, width, height)
-    return trialsCollection
-
-    # trialsCollection = []  # list to hold lists of date from each trial
-    # for m in range(num_trials):  # for each trial
-    #     # print "Trial %i:" % m,
-    #     if visualize: anim = ps11_visualize.RobotVisualization(num_robots, width, height, int(width/2), int(height/2), .02)
-    #     # create the room
-    #     testRoom = RectangularRoom(width, height)
-    #     testRoom.createDredgingLocations()
-    #     # create robots and put them in a list
-    #     robotList = []
-    #     for i in range(num_robots):
-    #         robotList.append(robot_type(testRoom, speed, testRoom.dredgeArea))
-    #
-    #     # initialize for this trial
-    #     percentClean = 0.0000000
-    #     progressList = []
-    #     while percentClean < min_coverage:  # clean until percent clean >= min coverage
-    #         if visualize: anim.update(testRoom, robotList)
-    #         for eachRobot in robotList:  # for each time1-step make each robot clean
-    #             if eachRobot.isPathPlanned == False and eachRobot.isHoldFull(eachRobot.hold):
-    #                 pos = eachRobot.getRobotPosition()
-    #                 eachRobot.path = astar(testRoom.roomWidth, testRoom.roomHeight, (int(pos.getX()), int(pos.getY())),
-    #                                                                                      testRoom.dumpLoc)
-    #                 eachRobot.isPathPlanned = True
-    #             eachRobot.updatePositionAndClean()
-    #             if eachRobot.hold == 0: #terrible do this with more finesse
-    #                 eachRobot.isPathPlanned = False
-    #         percentClean = float(testRoom.getNumCleanedTiles()) / float(testRoom.getNumTiles())
-    #         progressList.append(percentClean)
-    #     if visualize: anim.done()
-    #     trialsCollection.append(progressList)
-    #
-    #     # print "%i robot(s) took %i clock-ticks to clean %i %% of a %ix%i room." %(num_robots, len(progressList), int(min_coverage * 100), width, height)
-    # # averageOfTrials = calcAvgLengthList(trialsCollection)
-    # # print "On average, the %i robot(s) took %i clock ticks to %f clean a %i x %i room." %(num_robots, int(averageOfTrials), min_coverage, width, height)
-    # return trialsCollection
-
-def computeMeans(list_of_lists):
-    """
-    Returns a list as long as the longest list in LIST_OF_LISTS, where
-    the value at index i is the average of the values at index i in
-    all of LIST_OF_LISTS' lists.
-
-    Lists shorter than the longest list are padded with their final
-    value to be the same length.
-    """
-    # Find length of longest list
-    longest = 0
-    for lst in list_of_lists:
-        if len(lst) > longest:
-            longest = len(lst)
-    # Get totals
-    tots = [0] * (longest)
-    for lst in list_of_lists:
-        for i in range(longest):
-            if i < len(lst):
-                tots[i] += lst[i]
-            else:
-                tots[i] += lst[-1]
-    # Convert tots to an array to make averaging across each index easier
-    tots = pylab.array(tots)
-    # Compute means
-    means = tots / float(len(list_of_lists))
-    return means
-
-
-def calcAvgLengthList(listOfLists):
-    """
-    Takes a list of lists and then calculates the average length of the lists
-    """
-    sumOfLengths = 0
-    averageLength = 0
-    for eachList in listOfLists:
-        sumOfLengths += len(eachList)
-    averageLength = sumOfLengths / len(listOfLists)
-    # print averageLength
-    return averageLength
-
-
-def showPlot1():
-    """
-    Produces a plot showing dependence of cleaning time1 on room size.
-
-    How long does it take a single robot to clean 75% of each of the following types of rooms: 5x5, 10x10, 15x15, 20x20, 25x25? Output a figure that plots the mean time1 (on the Y-axis) against the area of the room.
-    """
-    print
-    """How long does it take a single robot to clean 75% of each of the following types of rooms: 5x5, 10x10, 15x15, 20x20, 25x25? Output a figure that plots the mean time1 (on the Y-axis) against the area of the room."""
-
-    square_size = [5, 10, 15, 20, 25]
-    listOfMeanTimes = []
-    for each in square_size:
-        trialsCollection = runSimulation(1, 1.0, each, each, 0.75, 25, Robot, False)
-        averageOfTrials = calcAvgLengthList(trialsCollection)
-        print
-        "On average, the robot took %i clock ticks to clean 75%% of a %i x %i room." % (
-        int(averageOfTrials), each, each)
-        listOfMeanTimes.append((each, int(averageOfTrials)))
-    write_lists_csv(listOfMeanTimes, "robot-x-size-of-square-room.csv", ["Size of Square Room", "Mean Time"])
-
-
-def showPlot2():
-    """
-    Produces a plot showing dependence of cleaning time1 on number of robots.
-
-    How long does it take to clean 75% of a 25x25 room with each of 1-10 robots? Output a figure that plots the mean time1 (on the Y-axis) against the number of robots.
-
-    """
-    listOfMeanTimes = []
-    for each in range(1, 11):
-        trialsCollection = runSimulation(each, 1.0, 25, 25, 0.75, 25, Robot, False)
-        averageOfTrials = calcAvgLengthList(trialsCollection)
-        # print "On average, the robot took %i clock ticks to clean 75%% of a %i x %i room." % (int(averageOfTrials), each, each)
-        listOfMeanTimes.append((each, int(averageOfTrials)))
-    write_lists_csv(listOfMeanTimes, "numRobot-x-square-room.csv", ["Num of Robots", "Mean Time"])
-
-
-def showPlot3():
-    """
-    Produces a plot showing dependence of cleaning time1 on room shape.
-    How long does it take two robots to clean 75% of rooms with dimensions 20x20, 25x16, 40x10, 50x8, 80x5, and 100x4? (Notice that the rooms have the same area.) Output a figure that plots the mean time1 (on the Y-axis) against the ratio of width to height.
-    """
-    room_size = [(20, 20), (25, 16), (40, 10), (50, 8), (80, 5), (100, 4)]
-    listOfMeanTimes = []
-    for each in room_size:
-        trialsCollection = runSimulation(1, 1.0, each[0], each[1], 0.75, 25, Robot, False)
-        averageOfTrials = calcAvgLengthList(trialsCollection)
-        print
-        "On average, the robot took %i clock ticks to clean 75%% of a %i x %i room." % (
-        int(averageOfTrials), each[0], each[1])
-        listOfMeanTimes.append((each, int(averageOfTrials)))
-    # print "write_lists_csv(listOfMeanTimes,"room-shape.csv", ["Means"])"
-    write_lists_csv(listOfMeanTimes, "room-shape.csv", ["Room Dimensions", "Means"])
-
-
-def showPlot4():
-    """
-    Produces a plot showing cleaning time1 vs. percentage cleaned, for
-    each of 1-5 robots.
-    How does the time1 it takes to clean a 25x25 room vary as min_coverage changes? Output a figure that plots mean time1 (on the Y-axis) against the percentage cleaned, for each of 1-5 robots. Your plot will have multiple curves.
-    """
-    percentClean = [.25, .5, .75, .8, .9, 1]
-    listOfMeanTimes = []
-    for i in range(1, 11):
-        for each in percentClean:
-            trialsCollection = runSimulation(i, 1.0, 25, 25, each, 25, Robot, False)
-            averageOfTrials = calcAvgLengthList(trialsCollection)
-            listOfMeanTimes.append((i, each, int(averageOfTrials)))
-    write_lists_csv(listOfMeanTimes, "robots-percentClean.csv", ["Num. Robots", "Percent cleaned", "Means"])
-
-
-
-def write_lists_csv(block_list, file_name, headers):
-    """
-    Takes a list or list of lists, a files location//name, and a list of headers
-    Writes the itemsof the lists as rows in a CSV file.  Each item of the list is a comma-separated value.
-    Returns the location of the CSV file.
-    """
-    fileWriter = csv.writer(open(file_name, 'wb'), delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-    fileWriter.writerow(headers)
-    for each in block_list:
-        fileWriter.writerow(each)
-
-    # fileWriter = open(file_name, 'w')
-    # fileWriter.writerow(headers)
-    # for item in block_list:
-    #   fileWriter.write("%s\n" % item)
-
-
-def showPlot1A():
-    """
-    Produces a plot showing dependence of cleaning time1 on room size.
-    """
-
-    room_sizes = ((5, 5), (10, 10), (15, 15), (20, 20), (25, 25))
-    room_areas = ()
-    for rs in room_sizes:
-        room_areas += (rs[0] * rs[1],)
-
-    room_size_time = ()
-    num_trials = 100
-    min_coverage = 0.75
-    robots_num = 1
-    for rs in room_sizes:
-        ll = runSimulation(robots_num, 1, rs[0], rs[1], min_coverage, num_trials, Robot, False)
-        assert len(ll) == num_trials, "Some error, num_trials != len(ll) "
-        room_size_time += (sum([len(l) for l in ll]) / float(num_trials),)
-    plot(room_areas, room_size_time, linestyle='--', lw=2, marker='o', \
-         markeredgecolor='k', markerfacecolor='r', markersize=8)
-    axis([20, 630, 0, 1050])
-    title('One robot. Time to clean 75% room size for different room sizes')
-    ylabel("Average time1 over %s trials" % num_trials)
-    xlabel("Room area")
-    show()
-
-def saveBest(pathout, filename ,value):
-    try:
-        with open(pathout+filename, 'a+', newline='') as sb:
-            csvWriter = csv.writer(sb)
-            csvWriter.writerow(value)
-            print('wrote')
-    except IOError:
-        print('not writable')
-        print(pathout+filename)
 
 # === Run code
-setSize = 100
+setSize = 10
 # (speed, width, height, min_coverage, robot_type, visualize, waypointSeperation, nextAngleConstraint, numOfWaypoints):
 iterator = 0
-def mainLoop(waypointSeperation, numOfWaypoints):
+optSpace = [Integer(1, 5, name='waypointSeperation'), Integer(1, 5, name='numOfWaypoints')]
+@use_named_args(dimensions=optSpace)
+def objective(waypointSeperation, numOfWaypoints):
     print("Running Simulation")
+    print(f'waypointSeperation: {waypointSeperation}')
+    print(f'numOfWaypoints: {numOfWaypoints}')
     focPath = 'C:\\Users\\denma\\Documents\\Uni\Thesis\\Simulator\\optimising_TSHD_path\\Sim\FamilyofCurves\\'
     bestPath = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\BestPath\\'
     curveScores = []
+    pathCollection = []
     now = datetime.now()
     dt_string = now.strftime("%d-%m-%H-%M-%S")
     for k in range(setSize):
-        print(f'set {k} of 100')
+        print(f'set {k} of {setSize}')
         RobotAvg = generatePaths(0.5, 70, 70, 0.9, setDistanceWapoint, False, waypointSeperation, 30,
-            numOfWaypoints)
+            numOfWaypoints, focPath+dt_string)
         saveBest(focPath, dt_string, [RobotAvg[1]])
         curveScores.append(RobotAvg[0])
+        del RobotAvg
+        gc.collect()
+        # pathCollection.append(RobotAvg[1])
     # data, initialSolution, initialTemp, iterationLimit, finalTemp, tempReduction, neighborOperator,
     # iterationPerTemp=100, alpha=10, beta=5)
-    gc.collect()
-    subsetSelection = SimulatedAnealing.SimulatedAnnealing(curveScores, int(setSize/2), -1, "linear")
+    subsetSelection = SimulatedAnealing.SimulatedAnnealing(curveScores, int(setSize/2))
     print(f'number of random greedy searches: {int(setSize / 2)}')
     best, index = subsetSelection.runGreedy()
-    print(index, best)
-    df = pd.read_csv(focPath+dt_string)
-    print(df.shape)
-    bestFamilyofCurves = df[index]
-    saveBest(bestPath, dt_string, )
+    # print(index, best)
+    # df = pd.read_csv(focPath+dt_string)
+    # print(df.shape)
+    # bestFamilyofCurves = df[index]
+    saveBest(bestPath, dt_string)
     return best
 
-pbounds = {'waypointSeperation': (1, 15), 'numOfWaypoints': (1, 15)}
-optimizer = BayesianOptimization(
-    f=mainLoop,
-    pbounds=pbounds,
-    random_state=1,
-)
 
-optimizer.maximize(
-    init_points=50,
-    n_iter=1000,
-)
-print(optimizer.max)
+#
+# opt = Optimizer(Integer(1, 15, name='waypointSeperation'))
 
-# optSpace = [Integer(1, 15, name='waypointSeperation'), Integer(1, 15, name='numOfWapoints')]
 
-mainLoop(15,15)
+res = gp_minimize(objective,                  # the function to minimize
+                  optSpace,      # the bounds on each dimension of x
+                  acq_func="gp_hedge",      # the acquisition function
+                  n_calls=100,         # the number of evaluations of f
+                  n_random_starts=10,  # the number of random initialization points
+                  noise=0.1**2,       # the noise level (optional)
+                  random_state=1234,  # the random seed
+                  verbose=True,
+                  n_jobs=-1)
+print(f'Best path length: {res.fun}')
+print(res.space)
+print(res.specs)
+

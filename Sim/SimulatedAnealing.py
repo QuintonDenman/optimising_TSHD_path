@@ -5,28 +5,33 @@ import random
 import math
 
 class SimulatedAnnealing:
-    def __init__(self, data, initialTemp, iterationLimit, finalTemp, tempReduction,
-                 iterationPerTemp=100, alpha=10, beta=5):
+    # def __init__(self, data, iterationLimit, finalTemp, tempReduction,
+    #              iterationPerTemp=100, alpha=10, beta=5):
+        # self.data = data
+        # self.dataDim = len(data)-1
+        # self.solution = data[random.randint(0, self.dataDim)]
+        # self.currTemp = initialTemp
+        # self.finalTemp = 1e-8 if finalTemp == -1 else finalTemp
+        # self.iterationPerTemp = iterationPerTemp
+        # self.alpha = alpha
+        # self.beta = beta
+        # self.iteration = 0
+        # self.iterationLimit = iterationLimit
+        # self.top10 = [0,0,0,0,0,0,0,0,0,0]
+    def __init__(self, data, iterationLimit):
         self.data = data
-        self.dataDim = len(data)-1
-        self.solution = data[random.randint(0, self.dataDim)]
-        self.currTemp = initialTemp
-        self.finalTemp = 1e-8 if finalTemp == -1 else finalTemp
-        self.iterationPerTemp = iterationPerTemp
-        self.alpha = alpha
-        self.beta = beta
+        self.dataDim = len(data) - 1
         self.iteration = 0
         self.iterationLimit = iterationLimit
-        self.top10 = [0,0,0,0,0,0,0,0,0,0]
-
-        if tempReduction == "linear":
-            self.decrementRule = self.linearTempReduction
-        elif tempReduction == "geometric":
-            self.decrementRule = self.geometricTempReduction
-        elif tempReduction == "slowDecrease":
-            self.decrementRule = self.slowDecreaseTempReduction
-        else:
-            self.decrementRule = tempReduction
+        self.solution = self.data[random.randint(0, self.dataDim)]
+        # if tempReduction == "linear":
+        #     self.decrementRule = self.linearTempReduction
+        # elif tempReduction == "geometric":
+        #     self.decrementRule = self.geometricTempReduction
+        # elif tempReduction == "slowDecrease":
+        #     self.decrementRule = self.slowDecreaseTempReduction
+        # else:
+        #     self.decrementRule = tempReduction
 
     def linearTempReduction(self):
         self.currTemp -= self.alpha
