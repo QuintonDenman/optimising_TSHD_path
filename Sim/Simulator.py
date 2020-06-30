@@ -1,7 +1,7 @@
 import math
 import random
 import os, sys, csv
-import Sim.ps11_visualize
+import ps11_visualize
 import numpy as np
 from skopt import Optimizer
 import pandas as pd
@@ -9,17 +9,17 @@ from skopt.space import Real, Integer
 import skopt
 from skopt import gp_minimize
 from skopt.utils import use_named_args
-from pylab import plot, axis, title, ylabel, xlabel, show
+# from pylab import plot, axis, title, ylabel, xlabel, show
 import csv
 from csv import writer
-from Sim import ps11_visualize
+# from Sim import ps11_visualize
 import time
-from Sim import Dubins
-from Sim import SimulatedAnealing
+import Dubins
+import SimulatedAnealing
 import gc
 from datetime import datetime
 import tracemalloc
-
+import linecache
 
 
 class Position(object):
@@ -700,7 +700,7 @@ def generatePaths(speed, width, height, min_coverage, robot_type, visualize, way
     while tmp < 20:
         tmp += 1
         if visualize: anim.update(testRoom, [robot])
-        tracemalloc.start()
+        # tracemalloc.start()
         tmpCollection.append(robot.dumpToPerimeter())
         for _ in range(robot.numOfWaypoints):
             tmpCollection.append(robot.dredgeRoute())
@@ -708,12 +708,17 @@ def generatePaths(speed, width, height, min_coverage, robot_type, visualize, way
             # tmpCoverage.append([tmpDredgeRoute]) #just the coverage of the dredging area
         # robot.currentToPerimeter()
         tmpCollection.append(robot.toDump())
-        current, peak = tracemalloc.get_traced_memory()
-        print(f"Current memory usage is {current / 10 ** 6}MB; Peak was {peak / 10 ** 6}MB")
-        tracemalloc.stop()
+        # current, peak = tracemalloc.get_traced_memory()
+        # print(f"Current memory usage is {current / 10 ** 6}MB; Peak was {peak / 10 ** 6}MB")
+        # tracemalloc.stop()
         numberOfCurves += 1
         percentClean = float(testRoom.getNumCleanedTiles()) / float(testRoom.getNumTiles())
+        snapshot = tracemalloc.take_snapshot()
+        top_stats = snapshot.statistics('lineno')
 
+        print("[ Top 10 ]")
+        for stat in top_stats[:10]:
+            print(stat)
         gc.collect()
         # print(f'percent clean {percentClean}')
         # print(f'percent cleaned: {percentClean}')
@@ -778,22 +783,46 @@ def createPathSimulation(num_robots, speed, width, height, num_trials, robot_typ
     # print "On average, the %i robot(s) took %i clock ticks to %f clean a %i x %i room." %(num_robots, int(averageOfTrials), min_coverage, width, height)
     return trialsCollection
 
+def display_top(snapshot, key_type='lineno', limit=10):
+    snapshot = snapshot.filter_traces((
+        tracemalloc.Filter(False, "<frozen importlib._bootstrap>"),
+        tracemalloc.Filter(False, "<unknown>"),
+    ))
+    top_stats = snapshot.statistics(key_type)
 
+    print("Top %s lines" % limit)
+    for index, stat in enumerate(top_stats[:limit], 1):
+        frame = stat.traceback[0]
+        print("#%s: %s:%s: %.1f KiB"
+              % (index, frame.filename, frame.lineno, stat.size / 1024))
+        line = linecache.getline(frame.filename, frame.lineno).strip()
+        if line:
+            print('    %s' % line)
+
+    other = top_stats[limit:]
+    if other:
+        size = sum(stat.size for stat in other)
+        print("%s other: %.1f KiB" % (len(other), size / 1024))
+    total = sum(stat.size for stat in top_stats)
+    print("Total allocated size: %.1f KiB" % (total / 1024))
 
 # === Run code
 setSize = 10
 # (speed, width, height, min_coverage, robot_type, visualize, waypointSeperation, nextAngleConstraint, numOfWaypoints):
 iterator = 0
+tracemalloc.start()
 optSpace = [Integer(1, 5, name='waypointSeperation'), Integer(1, 5, name='numOfWaypoints')]
 @use_named_args(dimensions=optSpace)
 def objective(waypointSeperation, numOfWaypoints):
     print("Running Simulation")
     print(f'waypointSeperation: {waypointSeperation}')
     print(f'numOfWaypoints: {numOfWaypoints}')
-    focPath = 'C:\\Users\\denma\\Documents\\Uni\Thesis\\Simulator\\optimising_TSHD_path\\Sim\FamilyofCurves\\'
-    bestPath = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\BestPath\\'
+    focPath = 'D:\\Masters\\Thesis\\Git\\optimising_TSHD_path\\Sim\\FamilyofCurves\\'
+    # focPath = 'C:\\Users\\denma\\Documents\\Uni\Thesis\\Simulator\\optimising_TSHD_path\\Sim\FamilyofCurves\\'
+    bestPath = 'D:\\Masters\\Thesis\\Git\\optimising_TSHD_path\\Sim\\BestPath\\'
+    # bestPath = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\BestPath\\'
     curveScores = []
-    pathCollection = []
+    # pathCollection = []
     now = datetime.now()
     dt_string = now.strftime("%d-%m-%H-%M-%S")
     for k in range(setSize):
