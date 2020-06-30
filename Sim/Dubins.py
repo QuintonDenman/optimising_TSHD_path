@@ -1,25 +1,51 @@
 import math
-
+import tracemalloc
+import linecache
 import matplotlib.pyplot as plt
 import numpy as np
+import sys
 
-show_animation = True
+show_animation = False
+
+def display_top(snapshot, key_type='lineno', limit=10):
+    snapshot = snapshot.filter_traces((
+        tracemalloc.Filter(False, "<frozen importlib._bootstrap>"),
+        tracemalloc.Filter(False, "<unknown>"),
+    ))
+    top_stats = snapshot.statistics(key_type)
+
+    print("Top %s lines" % limit)
+    for index, stat in enumerate(top_stats[:limit], 1):
+        frame = stat.traceback[0]
+        print("#%s: %s:%s: %.1f KiB"
+              % (index, frame.filename, frame.lineno, stat.size / 1024))
+        line = linecache.getline(frame.filename, frame.lineno).strip()
+        if line:
+            print('    %s' % line)
+
+    other = top_stats[limit:]
+    if other:
+        size = sum(stat.size for stat in other)
+        print("%s other: %.1f KiB" % (len(other), size / 1024))
+    total = sum(stat.size for stat in top_stats)
+    print("Total allocated size: %.1f KiB" % (total / 1024))
+
 
 
 def mod2pi(theta):
-    return theta - 2.0 * math.pi * math.floor(theta / 2.0 / math.pi)
+    return theta - 2.0 * np.pi * np.floor(theta / 2.0 / np.pi)
 
 
 def pi_2_pi(angle):
-    return (angle + math.pi) % (2 * math.pi) - math.pi
+    return (angle + np.pi) % (2 * np.pi) - np.pi
 
 
 def left_straight_left(alpha, beta, d):
-    sa = math.sin(alpha)
-    sb = math.sin(beta)
-    ca = math.cos(alpha)
-    cb = math.cos(beta)
-    c_ab = math.cos(alpha - beta)
+    sa = np.sin(alpha)
+    sb = np.sin(beta)
+    ca = np.cos(alpha)
+    cb = np.cos(beta)
+    c_ab = np.cos(alpha - beta)
 
     tmp0 = d + sa - sb
 
@@ -29,18 +55,18 @@ def left_straight_left(alpha, beta, d):
         return None, None, None, mode
     tmp1 = math.atan2((cb - ca), tmp0)
     t = mod2pi(-alpha + tmp1)
-    p = math.sqrt(p_squared)
+    p = np.sqrt(p_squared)
     q = mod2pi(beta - tmp1)
 
     return t, p, q, mode
 
 
 def right_straight_right(alpha, beta, d):
-    sa = math.sin(alpha)
-    sb = math.sin(beta)
-    ca = math.cos(alpha)
-    cb = math.cos(beta)
-    c_ab = math.cos(alpha - beta)
+    sa = np.sin(alpha)
+    sb = np.sin(beta)
+    ca = np.cos(alpha)
+    cb = np.cos(beta)
+    c_ab = np.cos(alpha - beta)
 
     tmp0 = d - sa + sb
     mode = ["R", "S", "R"]
@@ -49,24 +75,24 @@ def right_straight_right(alpha, beta, d):
         return None, None, None, mode
     tmp1 = math.atan2((ca - cb), tmp0)
     t = mod2pi(alpha - tmp1)
-    p = math.sqrt(p_squared)
+    p = np.sqrt(p_squared)
     q = mod2pi(-beta + tmp1)
 
     return t, p, q, mode
 
 
 def left_straight_right(alpha, beta, d):
-    sa = math.sin(alpha)
-    sb = math.sin(beta)
-    ca = math.cos(alpha)
-    cb = math.cos(beta)
-    c_ab = math.cos(alpha - beta)
+    sa = np.sin(alpha)
+    sb = np.sin(beta)
+    ca = np.cos(alpha)
+    cb = np.cos(beta)
+    c_ab = np.cos(alpha - beta)
 
     p_squared = -2 + (d * d) + (2 * c_ab) + (2 * d * (sa + sb))
     mode = ["L", "S", "R"]
     if p_squared < 0:
         return None, None, None, mode
-    p = math.sqrt(p_squared)
+    p = np.sqrt(p_squared)
     tmp2 = math.atan2((-ca - cb), (d + sa + sb)) - math.atan2(-2.0, p)
     t = mod2pi(-alpha + tmp2)
     q = mod2pi(-mod2pi(beta) + tmp2)
@@ -75,17 +101,17 @@ def left_straight_right(alpha, beta, d):
 
 
 def right_straight_left(alpha, beta, d):
-    sa = math.sin(alpha)
-    sb = math.sin(beta)
-    ca = math.cos(alpha)
-    cb = math.cos(beta)
-    c_ab = math.cos(alpha - beta)
+    sa = np.sin(alpha)
+    sb = np.sin(beta)
+    ca = np.cos(alpha)
+    cb = np.cos(beta)
+    c_ab = np.cos(alpha - beta)
 
     p_squared = (d * d) - 2 + (2 * c_ab) - (2 * d * (sa + sb))
     mode = ["R", "S", "L"]
     if p_squared < 0:
         return None, None, None, mode
-    p = math.sqrt(p_squared)
+    p = np.sqrt(p_squared)
     tmp2 = math.atan2((ca + cb), (d - sa - sb)) - math.atan2(2.0, p)
     t = mod2pi(alpha - tmp2)
     q = mod2pi(beta - tmp2)
@@ -94,35 +120,35 @@ def right_straight_left(alpha, beta, d):
 
 
 def right_left_right(alpha, beta, d):
-    sa = math.sin(alpha)
-    sb = math.sin(beta)
-    ca = math.cos(alpha)
-    cb = math.cos(beta)
-    c_ab = math.cos(alpha - beta)
+    sa = np.sin(alpha)
+    sb = np.sin(beta)
+    ca = np.cos(alpha)
+    cb = np.cos(beta)
+    c_ab = np.cos(alpha - beta)
 
     mode = ["R", "L", "R"]
     tmp_rlr = (6.0 - d * d + 2.0 * c_ab + 2.0 * d * (sa - sb)) / 8.0
     if abs(tmp_rlr) > 1.0:
         return None, None, None, mode
 
-    p = mod2pi(2 * math.pi - math.acos(tmp_rlr))
+    p = mod2pi(2 * np.pi - np.acos(tmp_rlr))
     t = mod2pi(alpha - math.atan2(ca - cb, d - sa + sb) + mod2pi(p / 2.0))
     q = mod2pi(alpha - beta - t + mod2pi(p))
     return t, p, q, mode
 
 
 def left_right_left(alpha, beta, d):
-    sa = math.sin(alpha)
-    sb = math.sin(beta)
-    ca = math.cos(alpha)
-    cb = math.cos(beta)
-    c_ab = math.cos(alpha - beta)
+    sa = np.sin(alpha)
+    sb = np.sin(beta)
+    ca = np.cos(alpha)
+    cb = np.cos(beta)
+    c_ab = np.cos(alpha - beta)
 
     mode = ["L", "R", "L"]
     tmp_lrl = (6.0 - d * d + 2.0 * c_ab + 2.0 * d * (- sa + sb)) / 8.0
     if abs(tmp_lrl) > 1:
         return None, None, None, mode
-    p = mod2pi(2 * math.pi - math.acos(tmp_lrl))
+    p = mod2pi(2 * np.pi - np.acos(tmp_lrl))
     t = mod2pi(-alpha - math.atan2(ca - cb, d + sa - sb) + p / 2.0)
     q = mod2pi(mod2pi(beta) - alpha - t + mod2pi(p))
 
@@ -132,7 +158,7 @@ def left_right_left(alpha, beta, d):
 def dubins_path_planning_from_origin(end_x, end_y, end_yaw, curvature, step_size):
     dx = end_x
     dy = end_y
-    D = math.hypot(dx, dy)
+    D = np.hypot(dx, dy)
     d = D * curvature
 
     theta = mod2pi(math.atan2(dy, dx))
@@ -164,18 +190,18 @@ def dubins_path_planning_from_origin(end_x, end_y, end_yaw, curvature, step_size
 
 def interpolate(ind, length, mode, max_curvature, origin_x, origin_y, origin_yaw, path_x, path_y, path_yaw, directions):
     if mode == "S":
-        path_x[ind] = origin_x + length / max_curvature * math.cos(origin_yaw)
-        path_y[ind] = origin_y + length / max_curvature * math.sin(origin_yaw)
+        path_x[ind] = origin_x + length / max_curvature * np.cos(origin_yaw)
+        path_y[ind] = origin_y + length / max_curvature * np.sin(origin_yaw)
         path_yaw[ind] = origin_yaw
     else:  # curve
-        ldx = math.sin(length) / max_curvature
+        ldx = np.sin(length) / max_curvature
         ldy = 0.0
         if mode == "L":  # left turn
-            ldy = (1.0 - math.cos(length)) / max_curvature
+            ldy = (1.0 - np.cos(length)) / max_curvature
         elif mode == "R":  # right turn
-            ldy = (1.0 - math.cos(length)) / -max_curvature
-        gdx = math.cos(-origin_yaw) * ldx + math.sin(-origin_yaw) * ldy
-        gdy = -math.sin(-origin_yaw) * ldx + math.cos(-origin_yaw) * ldy
+            ldy = (1.0 - np.cos(length)) / -max_curvature
+        gdx = np.cos(-origin_yaw) * ldx + np.sin(-origin_yaw) * ldy
+        gdy = -np.sin(-origin_yaw) * ldx + np.cos(-origin_yaw) * ldy
         path_x[ind] = origin_x + gdx
         path_y[ind] = origin_y + gdy
 
@@ -213,20 +239,34 @@ def dubins_path_planning(sx, sy, syaw, ex, ey, eyaw, c, step_size=1):
     ex = ex - sx
     ey = ey - sy
 
-    lex = math.cos(syaw) * ex + math.sin(syaw) * ey
-    ley = - math.sin(syaw) * ex + math.cos(syaw) * ey
+    lex = np.cos(syaw) * ex + np.sin(syaw) * ey
+    ley = - np.sin(syaw) * ex + np.cos(syaw) * ey
     leyaw = eyaw - syaw
 
     lpx, lpy, lpyaw, mode, clen = dubins_path_planning_from_origin(
         lex, ley, leyaw, c, step_size)
 
-    px = [math.cos(-syaw) * x + math.sin(-syaw)
+    px = [np.cos(-syaw) * x + np.sin(-syaw)
           * y + sx for x, y in zip(lpx, lpy)]
-    py = [- math.sin(-syaw) * x + math.cos(-syaw)
-          * y + sy for x, y in zip(lpx, lpy)]
-    pyaw = [pi_2_pi(iyaw + syaw) for iyaw in lpyaw]
+    print(f'fuck this {len(px)}')
+    print(sys.getsizeof(px))
+    # del globals()[px]
 
+    py = [- np.sin(-syaw) * x + np.cos(-syaw)
+          * y + sy for x, y in zip(lpx, lpy)]
+
+    pyaw = [pi_2_pi(iyaw + syaw) for iyaw in lpyaw]
+    snapshot = tracemalloc.take_snapshot()
+    top_stats = snapshot.statistics('lineno')
+    print("[ Top 10 ]")
+    for stat in top_stats[:10]:
+        print(stat)
     return px, py, pyaw, mode, clen
+
+# def memoryLeak():
+#     del px
+#     del py
+#     del pyaw
 
 
 def generate_local_course(total_length, lengths, mode, max_curvature, step_size):
@@ -294,15 +334,15 @@ def plot_arrow(x, y, yaw, length=1.0, width=0.5, fc="r", ec="k"):  # pragma: no 
         for (ix, iy, iyaw) in zip(x, y, yaw):
             plot_arrow(ix, iy, iyaw)
     else:
-        plt.arrow(x, y, length * math.cos(yaw), length * math.sin(yaw),
+        plt.arrow(x, y, length * np.cos(yaw), length * np.sin(yaw),
                   fc=fc, ec=ec, head_width=width, head_length=width)
         plt.plot(x, y)
 
 def getDubinsPath(start_x, start_y, start_angle, end_x, end_y, end_angle, curvature):
-    px, py, pyaw, mode, clen = dubins_path_planning(start_x, start_y, start_angle,
+    npx, npy, npyaw, mode, clen = dubins_path_planning(start_x, start_y, start_angle,
                                                     end_x, end_y, end_angle, curvature)
-    return px, py, pyaw
 
+    return npx, npy, npyaw
 
 def main():
     print("Dubins path planner sample start!!")
