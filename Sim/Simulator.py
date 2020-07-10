@@ -15,11 +15,14 @@ from csv import writer
 from Sim import ps11_visualize
 import time
 from Sim import Dubins
-from Sim import SimulatedAnealing
+from Sim import Greedy
 import gc
 from datetime import datetime
 import tracemalloc
 import linecache
+from pulp import *
+import itertools
+import time
 
 
 class Position(object):
@@ -195,7 +198,7 @@ class RectangularRoom(object):
         self.closePerimeter = []
 
     def createDredgingLocations(self):
-        """"
+        """
         Creates a basic rectangular dredging area based on the size of the two variables:
          dredgeAreaWidth & dredgeAreaHeight
         """
@@ -557,10 +560,11 @@ class setDistanceWapoint(BaseShip):
                                                                           self.nextAngleConstraint)
             # print("it actually happened")
         # try:
-        dx, dy, dangle = Dubins.getDubinsPath(currentPosition.getX(), currentPosition.getY(),
+        dx, dy, dangle = Dubins.main(currentPosition.getX(), currentPosition.getY(),
                                               math.radians(currentPosition.getHeading()), constrainedPos.getX(),
                                               constrainedPos.getY(), math.radians(constrainedPos.getHeading()),
                                               currentPosition.turningRadius)
+        gc.collect()
         # except:
         #     MemoryError
         #     print(f'length of one dangle: { len(px)}')
@@ -611,7 +615,7 @@ class setDistanceWapoint(BaseShip):
         dump_x, dump_y = self.robotRoom.dumpLoc
         currentPosition = self.getRobotPosition()
         endAngle = (math.atan2(currentPosition.getX() - dump_x, currentPosition.getY() - dump_y))
-        dx, dy, dangle = Dubins.getDubinsPath(currentPosition.getX(), currentPosition.getY(),
+        dx, dy, dangle = Dubins.main(currentPosition.getX(), currentPosition.getY(),
                                               currentPosition.getHeading(), dump_x, dump_y, endAngle,
                                               currentPosition.turningRadius)
         if not self.isHoldFull(self.hold):
@@ -623,6 +627,7 @@ class setDistanceWapoint(BaseShip):
         newPos = currentPosition.setPosition(dx[-1], dy[-1], dangle[-1])
         self.robotPosition = newPos
         self.hold = 0
+        gc.collect()
         return dx, dy, dangle
 
 
@@ -663,7 +668,6 @@ def display_top(snapshot, key_type='lineno', limit=10):
         print("%s other: %.1f KiB" % (len(other), size / 1024))
     total = sum(stat.size for stat in top_stats)
     print("Total allocated size: %.1f KiB" % (total / 1024))
-
 
 
 def generatePaths(speed, width, height, min_coverage, robot_type, visualize, waypointSeperation, nextAngleConstraint,
@@ -714,6 +718,7 @@ def generatePaths(speed, width, height, min_coverage, robot_type, visualize, way
     gc.collect()
 
     percentClean = float(testRoom.getNumCleanedTiles()) / float(testRoom.getNumTiles())
+    cleanTiles = testRoom.getCleanTiles()
     # while tmp < 20:
     #     tmp += 1
     #     if visualize: anim.update(testRoom, [robot])
@@ -731,7 +736,7 @@ def generatePaths(speed, width, height, min_coverage, robot_type, visualize, way
     # trialsCollection.append(progressList)
     # coveragePath.append(tmpCoverage)
 
-    return [percentClean, x, y, h]
+    return [x, y, h, percentClean, cleanTiles, len(x)]
 
 # === Run code
 setSize = 2000
@@ -748,24 +753,29 @@ def objective(waypointSeperation, numOfWaypoints):
     focPath = 'C:\\Users\\denma\\Documents\\Uni\Thesis\\Simulator\\optimising_TSHD_path\\Sim\FamilyofCurves\\'
     # bestPath = 'D:\\Masters\\Thesis\\Git\\optimising_TSHD_path\\Sim\\BestPath\\'
     bestPath = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\BestPath\\'
-    curveScores = []
+    coverage = []
+    tilesCovered = []
     pathCollection = []
+    pathLen = []
     now = datetime.now()
     dt_string = now.strftime("%d-%m-%H-%M-%S")
     for k in range(setSize):
-
+        start_time = time.time()
         RobotAvg = generatePaths(0.5, 70, 70, 0.9, setDistanceWapoint, False, waypointSeperation, 30,
             numOfWaypoints, focPath+dt_string)
         # saveBest(focPath, dt_string, [RobotAvg[1]])
-        print(globals())
-        curveScores.append(RobotAvg[0])
-        pathCollection.append([RobotAvg[1], RobotAvg[2], RobotAvg[3]])
+        pathCollection.append([RobotAvg[0], RobotAvg[1], RobotAvg[2]])
+        coverage.append([RobotAvg[3]])
+        tilesCovered.append([RobotAvg[4]])
+        pathLen.append([RobotAvg[5]])
         snapshot = tracemalloc.take_snapshot()
         top_stats = snapshot.statistics('lineno')
         del RobotAvg
         gc.collect()
-        if k % 100 == 0:
+
+        if k % 10 == 0:
             print(f'set {k} of {setSize}')
+            print("--- %s seconds ---" % (time.time() - start_time))
             print("[ Top 10 ]")
             for stat in top_stats[:10]:
                 print(stat)
@@ -774,7 +784,9 @@ def objective(waypointSeperation, numOfWaypoints):
 
     # data, initialSolution, initialTemp, iterationLimit, finalTemp, tempReduction, neighborOperator,
     # iterationPerTemp=100, alpha=10, beta=5)
-    subsetSelection = SimulatedAnealing.SimulatedAnnealing(curveScores, int(setSize/2))
+    # subsetSelection = LpP[roblem("Subset Selection", LpMinimize)
+    # subsetSelection += lpSum(objective[]])
+    subsetSelection = Greedy.SimulatedAnnealing(pathLen, tilesCovered, coverage, int(setSize/2))
     print(f'number of random greedy searches: {int(setSize / 2)}')
     best, index = subsetSelection.runGreedy()
     # print(index, best)

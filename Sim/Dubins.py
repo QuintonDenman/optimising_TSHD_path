@@ -4,8 +4,11 @@ import linecache
 import matplotlib.pyplot as plt
 import numpy as np
 import sys
+import gc
+from pympler.asizeof import asizeof
 
 show_animation = False
+
 
 def display_top(snapshot, key_type='lineno', limit=10):
     snapshot = snapshot.filter_traces((
@@ -245,23 +248,38 @@ def dubins_path_planning(sx, sy, syaw, ex, ey, eyaw, c, step_size=1):
 
     lpx, lpy, lpyaw, mode, clen = dubins_path_planning_from_origin(
         lex, ley, leyaw, c, step_size)
+    test = zip(lpx, lpy)
+    # px = [np.cos(-syaw) * x + np.sin(-syaw)
+    #       * y + sx for x, y in zip(lpx, lpy)]
+    # print(f'fuck this {len(lpx)}')
+    # print(asizeof.asized(px, detail=1).format())
 
-    px = [np.cos(-syaw) * x + np.sin(-syaw)
-          * y + sx for x, y in zip(lpx, lpy)]
-    print(f'fuck this {len(px)}')
-    print(sys.getsizeof(px))
-    # del globals()[px]
-
-    py = [- np.sin(-syaw) * x + np.cos(-syaw)
-          * y + sy for x, y in zip(lpx, lpy)]
-
-    pyaw = [pi_2_pi(iyaw + syaw) for iyaw in lpyaw]
-    snapshot = tracemalloc.take_snapshot()
-    top_stats = snapshot.statistics('lineno')
-    print("[ Top 10 ]")
-    for stat in top_stats[:10]:
-        print(stat)
-    return px, py, pyaw, mode, clen
+    # py = [- np.sin(-syaw) * x + np.cos(-syaw)
+    #       * y + sy for x, y in zip(lpx, lpy)]
+    px = []
+    py = []
+    tmpx = []
+    tmpy = []
+    tmpyaw = []
+    pyaw = []
+    for x, y in test:
+        px.append(np.cos(-syaw) * x + np.sin(-syaw) * y + sx)
+        py.append(- np.sin(-syaw) * x + np.cos(-syaw) * y + sy)
+    tmpx = px
+    del px
+    tmpy = py
+    del py
+    for iyaw in lpyaw:
+        pyaw.append(pi_2_pi(iyaw+syaw))
+    tmpyaw = pyaw
+    del pyaw
+    # pyaw = [pi_2_pi(iyaw + syaw) for iyaw in lpyaw]
+    # snapshot = tracemalloc.take_snapshot()
+    # top_stats = snapshot.statistics('lineno')
+    # print("[ Top 10 ]")
+    # for stat in top_stats[:10]:
+    #     print(stat)
+    return tmpx, tmpy, tmpyaw, mode, clen
 
 # def memoryLeak():
 #     del px
@@ -344,34 +362,25 @@ def getDubinsPath(start_x, start_y, start_angle, end_x, end_y, end_angle, curvat
 
     return npx, npy, npyaw
 
-def main():
-    print("Dubins path planner sample start!!")
+def main(start_x, start_y, start_angle, end_x, end_y, end_angle, curvature):
+    # print("Dubins path planner sample start!!")
 
-    start_x = 1.0  # [m]
-    start_y = 1.0  # [m]
-    start_yaw = np.deg2rad(45.0)  # [rad]
 
-    end_x = -4.0  # [m]
-    end_y = -2.0  # [m]
-    end_yaw = np.deg2rad(-45.0)  # [rad]
-
-    curvature = 1.0
-
-    px, py, pyaw, mode, clen = dubins_path_planning(start_x, start_y, start_yaw,
-                                                    end_x, end_y, end_yaw, curvature)
-    print(f'px: {px}, \n py: {py},\n pyaw: {pyaw},\n mode: {mode}, clen: {clen}')
-    if show_animation:
-        plt.plot(px, py, label="final course " + "".join(mode))
-
-        # plotting
-        plot_arrow(start_x, start_y, start_yaw)
-        plot_arrow(end_x, end_y, end_yaw)
-
-        plt.legend()
-        plt.grid(True)
-        plt.axis("equal")
-        plt.show()
-
+    px, py, pyaw, mode, clen = dubins_path_planning(start_x, start_y, start_angle,
+                                                    end_x, end_y, end_angle, curvature)
+    # print(f'px: {px}, \n py: {py},\n pyaw: {pyaw},\n mode: {mode}, clen: {clen}')
+    # if show_animation:
+    #     plt.plot(px, py, label="final course " + "".join(mode))
+    #
+    #     # plotting
+    #     plot_arrow(start_x, start_y, start_yaw)
+    #     plot_arrow(end_x, end_y, end_yaw)
+    #
+    #     plt.legend()
+    #     plt.grid(True)
+    #     plt.axis("equal")
+    #     plt.show()
+    return px, py, pyaw
 
 if __name__ == '__main__':
     main()
