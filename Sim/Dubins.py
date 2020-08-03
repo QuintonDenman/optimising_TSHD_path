@@ -134,7 +134,7 @@ def right_left_right(alpha, beta, d):
     if abs(tmp_rlr) > 1.0:
         return None, None, None, mode
 
-    p = mod2pi(2 * np.pi - np.acos(tmp_rlr))
+    p = mod2pi(2 * np.pi - math.acos(tmp_rlr))
     t = mod2pi(alpha - math.atan2(ca - cb, d - sa + sb) + mod2pi(p / 2.0))
     q = mod2pi(alpha - beta - t + mod2pi(p))
     return t, p, q, mode
@@ -151,7 +151,7 @@ def left_right_left(alpha, beta, d):
     tmp_lrl = (6.0 - d * d + 2.0 * c_ab + 2.0 * d * (- sa + sb)) / 8.0
     if abs(tmp_lrl) > 1:
         return None, None, None, mode
-    p = mod2pi(2 * np.pi - np.acos(tmp_lrl))
+    p = mod2pi(2 * np.pi - math.acos(tmp_lrl))
     t = mod2pi(-alpha - math.atan2(ca - cb, d + sa - sb) + p / 2.0)
     q = mod2pi(mod2pi(beta) - alpha - t + mod2pi(p))
 

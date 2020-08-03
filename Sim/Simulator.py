@@ -9,6 +9,9 @@ from skopt.space import Real, Integer
 import skopt
 from skopt import gp_minimize
 from skopt.utils import use_named_args
+from skopt import callbacks
+from skopt.callbacks import CheckpointSaver
+from skopt import load
 # from pylab import plot, axis, title, ylabel, xlabel, show
 import csv
 from csv import writer
@@ -192,6 +195,7 @@ class RectangularRoom(object):
         self.dredgeAreaWidth = int(width/2)
         self.dredgeArea = []
         self.cleanTiles = {}  # a dictionary of Position objects
+        self.dredgeMatrix = np.zeros((self.dredgeAreaWidth, self.dredgeAreaHeight))
         self.resultantEnvForce = 2
         self.dumpLoc = (width, height)
         self.dredgePerimeter = []
@@ -218,11 +222,13 @@ class RectangularRoom(object):
         # Convert postion to integer, add the position to the dictionary of clean positions; increment if necessary
         intPosition = (int(pos.getX()), int(pos.getY()))
         self.cleanTiles[intPosition] = self.cleanTiles.get(intPosition, 0) + 1
+        self.dredgeMatrix[intPosition[0]-36, intPosition[1]-36] += 1
 
     def dredgeTileAtPosition(self, x, y):
 
         intPosition = (int(x), int(y))
         self.cleanTiles[intPosition] = self.cleanTiles.get(intPosition, 0) + 1
+        self.dredgeMatrix[intPosition[0]-36, intPosition[1]-36] += 1
 
     def getCleanTiles(self):
         return self.cleanTiles
@@ -633,17 +639,29 @@ class setDistanceWapoint(BaseShip):
 
 
 
-def saveBest(pathout, filename ,value):
+def appendToCSV1(pathout, filename ,value):
     try:
         with open(pathout+filename, 'a+', newline='') as sb:
             csvWriter = csv.writer(sb)
             csvWriter.writerow(value)
-            print('wrote')
     # except IOError:
     #     # print('not writable')
     #     # print(pathout+filename)
     except MemoryError:
         print(len(value))
+
+def appendToCSV(pathout, filename, value1, value2, value3):
+    try:
+        with open(pathout+filename, 'a+', newline='') as sb:
+            csvWriter = csv.writer(sb)
+            csvWriter.writerow(value1)
+            csvWriter.writerow(value2)
+            csvWriter.writerow(value3)
+    # except IOError:
+    #     # print('not writable')
+    #     # print(pathout+filename)
+    except MemoryError:
+        print(len(value1))
 
 
 def display_top(snapshot, key_type='lineno', limit=10):
@@ -680,6 +698,7 @@ def generatePaths(speed, width, height, min_coverage, robot_type, visualize, way
     x = []
     y = []
     h = []
+    # dredgedLoc = []
     # print "Trial %i:" % m,
     # if visualize: anim = ps11_visualize.RobotVisualization(width, height, int(width/2), int(height/2), .02)
     # create the room
@@ -718,7 +737,9 @@ def generatePaths(speed, width, height, min_coverage, robot_type, visualize, way
     gc.collect()
 
     percentClean = float(testRoom.getNumCleanedTiles()) / float(testRoom.getNumTiles())
-    cleanTiles = testRoom.getCleanTiles()
+    # cleanTiles = testRoom.getCleanTiles()
+    # for i, _ in cleanTiles.items():
+    #     dredgedLoc.append(i)
     # while tmp < 20:
     #     tmp += 1
     #     if visualize: anim.update(testRoom, [robot])
@@ -736,80 +757,120 @@ def generatePaths(speed, width, height, min_coverage, robot_type, visualize, way
     # trialsCollection.append(progressList)
     # coveragePath.append(tmpCoverage)
 
-    return [x, y, h, percentClean, cleanTiles, len(x)]
+    return [x, y, h, percentClean, testRoom.dredgeMatrix, len(x)]
+
+def restart():
+    print("argv was", sys.argv)
+    print("sys.executable was", sys.executable)
+    print("restart now")
+    os.execv(sys.executable, ['python'] + sys.argv)
+
+
 
 # === Run code
-setSize = 2000
+setSize = 200
+numOfPaths = 2000
 # (speed, width, height, min_coverage, robot_type, visualize, waypointSeperation, nextAngleConstraint, numOfWaypoints):
 iterator = 0
 tracemalloc.start()
-optSpace = [Integer(1, 5, name='waypointSeperation'), Integer(1, 5, name='numOfWaypoints')]
+optSpace = [Integer(1, 10, name='waypointSeperation'), Integer(1, 5, name='numOfWaypoints')]
 @use_named_args(dimensions=optSpace)
 def objective(waypointSeperation, numOfWaypoints):
+    width = 70
     print("Running Simulation")
     print(f'waypointSeperation: {waypointSeperation}')
     print(f'numOfWaypoints: {numOfWaypoints}')
     # focPath = 'D:\\Masters\\Thesis\\Git\\optimising_TSHD_path\\Sim\\FamilyofCurves\\'
-    focPath = 'C:\\Users\\denma\\Documents\\Uni\Thesis\\Simulator\\optimising_TSHD_path\\Sim\FamilyofCurves\\'
+    focPath = 'C:\\Users\\denma\\Documents\\Uni\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\FamilyofCurves\\'
     # bestPath = 'D:\\Masters\\Thesis\\Git\\optimising_TSHD_path\\Sim\\BestPath\\'
     bestPath = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\BestPath\\'
-    coverage = []
-    tilesCovered = []
-    pathCollection = []
-    pathLen = []
-    now = datetime.now()
-    dt_string = now.strftime("%d-%m-%H-%M-%S")
-    for k in range(setSize):
-        start_time = time.time()
-        RobotAvg = generatePaths(0.5, 70, 70, 0.9, setDistanceWapoint, False, waypointSeperation, 30,
-            numOfWaypoints, focPath+dt_string)
-        # saveBest(focPath, dt_string, [RobotAvg[1]])
-        pathCollection.append([RobotAvg[0], RobotAvg[1], RobotAvg[2]])
-        coverage.append([RobotAvg[3]])
-        tilesCovered.append([RobotAvg[4]])
-        pathLen.append([RobotAvg[5]])
-        snapshot = tracemalloc.take_snapshot()
-        top_stats = snapshot.statistics('lineno')
-        del RobotAvg
-        gc.collect()
+    optPath = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\opt\\'
+    Matrices = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\Matrices\\'
+    hyp_string = str(waypointSeperation) + '_' + str(numOfWaypoints)
+    try:
+        current_dataset = pd.read_csv(focPath + hyp_string, delimiter=',')
+        # print(current_dataset)
+        num_entries = len(current_dataset.index)
+    except FileNotFoundError:
+        num_entries = 0
+        print(f'number of entries are 0, should be the first run???????????????????????????????????????????????????????')
+    while num_entries < (numOfPaths*3)-1:
+        print(f'Number of entries = {num_entries}'
+              f'Number of paths = {numOfPaths*3}')
+        for k in range(setSize):
+            start_time = time.time()
+            RobotAvg = generatePaths(0.5, width, width, 0.9, setDistanceWapoint, False, waypointSeperation, 30,
+                numOfWaypoints, focPath+hyp_string)
+            # saveBest(focPath, dt_string, [RobotAvg[1]])
+            appendToCSV(focPath, hyp_string, RobotAvg[0], RobotAvg[1], RobotAvg[2])
+            # print(RobotAvg[3])
+            # print(RobotAvg[4])
+            # print(RobotAvg[5])
+            pd.DataFrame(RobotAvg[4]).to_csv(Matrices+hyp_string, mode='a', header=False, index=None)
+            appendToCSV1(optPath, hyp_string, [RobotAvg[3], RobotAvg[5]])
+            # snapshot = tracemalloc.take_snapshot()
+            # top_stats = snapshot.statistics('lineno')
+            gc.collect()
 
-        if k % 10 == 0:
-            print(f'set {k} of {setSize}')
-            print("--- %s seconds ---" % (time.time() - start_time))
-            print("[ Top 10 ]")
-            for stat in top_stats[:10]:
-                print(stat)
-
+            if k % 10 == 0 :
+                print(f'set {k} of {setSize}')
+                print("--- %s seconds ---" % (time.time() - start_time))
+                # overlap_data = pd.read_csv(Matrices + hyp_string, delimiter=',', header=None)
+                # print(f'overlap data straight from csv: {overlap_data}')
+                # print(f'overlap data straight from csv: {overlap_data.shape[0] / 35}')
+                # print(f'overlap data straight from csv: {overlap_data.shape}')
+                # print(f'written to: {RobotAvg[4]}')
+                # print(f'written to: {RobotAvg[4].shape}')
+                # print(f'written to: {RobotAvg[4].shape[0]/35}')
+                # print(RobotAvg[4].shape[0]/35)
+                # print("[ Top 10 ]")
+                # for stat in top_stats[:10]:
+                #     print(stat)
+        os.system('python "C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\Simulator.py"')  #restart
         # pathCollection.append(RobotAvg[1])
 
     # data, initialSolution, initialTemp, iterationLimit, finalTemp, tempReduction, neighborOperator,
     # iterationPerTemp=100, alpha=10, beta=5)
     # subsetSelection = LpP[roblem("Subset Selection", LpMinimize)
     # subsetSelection += lpSum(objective[]])
-    subsetSelection = Greedy.SimulatedAnnealing(pathLen, tilesCovered, coverage, int(setSize/2))
-    print(f'number of random greedy searches: {int(setSize / 2)}')
-    best, index = subsetSelection.runGreedy()
+    opt_data = pd.read_csv(optPath+hyp_string, delimiter = ',', names = ['coverage', 'path_length'])
+    overlap_data = pd.read_csv(Matrices+hyp_string,  delimiter = ',', header = None)
+    pd.set_option("display.max_rows", None, "display.max_columns", None)
+    # dingle = opt_data['dredged_locations'].values.tolist()
+    pl_list = opt_data['path_length'].values.tolist()
+    # dl_list = opt_data['dredged_locations'].values.tolist()
+    c_list = opt_data['coverage'].values.tolist()
+    subsetSelection = Greedy.Greedy(pl_list, overlap_data, c_list, numOfPaths/2, int(width/2))
+    print(f'number of random greedy searches: {numOfPaths}')
+    best, indexs = subsetSelection.runGreedy()
     # print(index, best)
     # df = pd.read_csv(focPath+dt_string)
     # print(df.shape)
     # bestFamilyofCurves = df[index]
-    saveBest(bestPath, dt_string, pathCollection[index])
+    appendToCSV(bestPath, hyp_string+'_'+str(best), indexs)
     return best
 
 
+checkpoint_saver = CheckpointSaver("./checkpoint.pkl",
+                                   compress=9)  # keyword arguments will be passed to `skopt.dump`
+try:
+    res = load('C:\\Users\\denma\\Documents\\Uni\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\checkpoint.pkl')
+
+except:
+    print("###################################### no file to Load ###############################################")
+    res = gp_minimize(objective,  # the function to minimize
+                      optSpace,  # the bounds on each dimension of x
+                      acq_func="gp_hedge",  # the acquisition function
+                      n_calls=100,  # the number of evaluations of f
+                      n_random_starts=10,  # the number of random initialization points
+                      noise=0.1 ** 2,  # the noise level (optional)
+                      random_state=1234,  # the random seed
+                      verbose=True,
+                      n_jobs=-1)
 #
 # opt = Optimizer(Integer(1, 15, name='waypointSeperation'))
 
 
-res = gp_minimize(objective,                  # the function to minimize
-                  optSpace,      # the bounds on each dimension of x
-                  acq_func="gp_hedge",      # the acquisition function
-                  n_calls=100,         # the number of evaluations of f
-                  n_random_starts=10,  # the number of random initialization points
-                  noise=0.1**2,       # the noise level (optional)
-                  random_state=1234,  # the random seed
-                  verbose=True,
-                  n_jobs=-1)
 print(f'Best path length: {res.fun}')
 print(res.space)
 print(res.specs)
