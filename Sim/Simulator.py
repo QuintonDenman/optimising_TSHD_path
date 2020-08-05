@@ -692,9 +692,10 @@ def generatePaths(speed, width, height, min_coverage, robot_type, visualize, way
         numOfWaypoints, filename):
 
     # tmpCollection = []
-    tmp_x = []
-    tmp_y = []
-    tmp_h = []
+    # tmp_x = []
+    # tmp_y = []
+    # tmp_h = []
+    pathLen = 0
     x = []
     y = []
     h = []
@@ -718,6 +719,7 @@ def generatePaths(speed, width, height, min_coverage, robot_type, visualize, way
     # tmp_x, tmp_y, tmp_h = robot.dumpToPerimeter()
     for _ in range(robot.numOfWaypoints):
         tmp_x, tmp_y, tmp_h = robot.dredgeRoute()
+        pathLen += len(tmp_x)
         x.append(tmp_x)
         del tmp_x
         y.append(tmp_y)
@@ -728,6 +730,7 @@ def generatePaths(speed, width, height, min_coverage, robot_type, visualize, way
 
 
     tmp_x, tmp_y, tmp_h = robot.toDump()
+    pathLen += len(tmp_x)
     x.append(tmp_x)
     del tmp_x
     y.append(tmp_y)
@@ -757,7 +760,7 @@ def generatePaths(speed, width, height, min_coverage, robot_type, visualize, way
     # trialsCollection.append(progressList)
     # coveragePath.append(tmpCoverage)
 
-    return [x, y, h, percentClean, testRoom.dredgeMatrix, len(x)]
+    return [x, y, h, percentClean, testRoom.dredgeMatrix, pathLen]
 
 def restart():
     print("argv was", sys.argv)
@@ -847,14 +850,30 @@ def objective(waypointSeperation, numOfWaypoints):
     # df = pd.read_csv(focPath+dt_string)
     # print(df.shape)
     # bestFamilyofCurves = df[index]
-    appendToCSV(bestPath, hyp_string+'_'+str(best), indexs)
+    appendToCSV1(bestPath, hyp_string+'_'+str(best), indexs)
     return best
 
 
-checkpoint_saver = CheckpointSaver("./checkpoint.pkl",
+checkpoint_saver = CheckpointSaver("C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\check\\checkpoint.pkl",
                                    compress=9)  # keyword arguments will be passed to `skopt.dump`
 try:
-    res = load('C:\\Users\\denma\\Documents\\Uni\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\checkpoint.pkl')
+    res = load('C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\check\\checkpoint.pkl')
+    x0 = res.x_iters
+    print(x0)
+    y0 = res.func_vals
+    print(y0)
+    gp_minimize(objective,  # the function to minimize
+                optSpace,  # the bounds on each dimension of x
+                x0=x0, # already examined values for x
+                y0=y0, # observed values for x0
+                acq_func="gp_hedge",  # the acquisition function
+                n_calls=100,  # the number of evaluations of f
+                callback=[checkpoint_saver],
+                n_random_starts=10,  # the number of random initialization points
+                noise=0.1 ** 2,  # the noise level (optional)
+                random_state=1234,  # the random seed
+                verbose=True,
+                n_jobs=-1)
 
 except:
     print("###################################### no file to Load ###############################################")
@@ -862,6 +881,7 @@ except:
                       optSpace,  # the bounds on each dimension of x
                       acq_func="gp_hedge",  # the acquisition function
                       n_calls=100,  # the number of evaluations of f
+                      callback=[checkpoint_saver],
                       n_random_starts=10,  # the number of random initialization points
                       noise=0.1 ** 2,  # the noise level (optional)
                       random_state=1234,  # the random seed

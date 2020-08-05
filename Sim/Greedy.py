@@ -70,12 +70,20 @@ class Greedy:
 
     def runGreedy(self):
         pathLen, coverage, overlap, trueIndexs, overlapMatrix = self.randomSolution()
-        bestScore = overlap - (coverage*10) - pathLen
+        bisPath = pathLen
+        bisCov = coverage
+        bisOL = overlap
+        bisInd = trueIndexs
+        bisMatrix = overlapMatrix
+        bestScore = pathLen - (coverage*100) + overlap
         print(f' Initial total overlap: {overlap}'
               f' \n Initial coverage: {coverage}'
               f' \n Initial pathlen: {pathLen}'
               f' \n Initial Overall Score: {bestScore}')
         # bestIndexs = trueIndexs
+        print(self.coverage)
+        print(self.pathLen)
+        print(len(self.pathLen))
         while self.iteration < self.iterationLimit:
             self.iteration += 1
             print(f'Starting Greedy iteration {self.iteration} of {self.iterationLimit}')
@@ -112,18 +120,20 @@ class Greedy:
                 # covDiff = tmpCoverage - coverage
                 # pathDiff = tmpPathLen - pathLen         #smaller better?
 
-                current = total_overlap - (tmpCoverage*10) - tmpPathLen
+                current = tmpPathLen - (tmpCoverage*100) + total_overlap
                 if current < bestScore:
                     bestScore = current
-                    trueIndexs = tmpList
-                    coverage = tmpCoverage
-                    pathLen = tmpPathLen
-                    overlapMatrix = tmpOlMatrix
-                    print(f'######## Breaking inner loop #######')
-                    break
-            print(f'total overlap: {total_overlap}'
-                  f' \n coverage: {coverage}'
-                  f' \n pathlen: {pathLen}'
-                  f' \n Overall Score: {bestScore}')
-        return bestScore, trueIndexs
+                    bisInd = tmpList
+                    bisCov = tmpCoverage
+                    bisPath = tmpPathLen
+                    bisMatrix = tmpOlMatrix
+                    # print(f'#####%%%%%%%%%%%%%%%%%%%%%%%%### Breaking inner loop ####%%%%%%%%%%%%%%%%%%%%%%%%%%%%%###')
+                    # print(f'{i} / {len(trueIndexs)}')
+            pathLen  = bisPath
+            coverage = bisCov
+            overlap = bisOL
+            trueIndexs = bisInd
+            overlapMatrix = bisMatrix
+            # pathLen, coverage, overlap, trueIndexs, overlapMatrix = bisPath, bisCov, bisOL, bisInd, bisMatrix
+        return bestScore, bisInd
 
