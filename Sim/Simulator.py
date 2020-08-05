@@ -843,7 +843,7 @@ def objective(waypointSeperation, numOfWaypoints):
     pl_list = opt_data['path_length'].values.tolist()
     # dl_list = opt_data['dredged_locations'].values.tolist()
     c_list = opt_data['coverage'].values.tolist()
-    subsetSelection = Greedy.Greedy(pl_list, overlap_data, c_list, numOfPaths/2, int(width/2))
+    subsetSelection = Greedy.Greedy(pl_list, overlap_data, c_list, 500, int(width/2))
     print(f'number of random greedy searches: {numOfPaths}')
     best, indexs = subsetSelection.runGreedy()
     # print(index, best)
@@ -854,8 +854,7 @@ def objective(waypointSeperation, numOfWaypoints):
     return best
 
 
-checkpoint_saver = CheckpointSaver("C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\check\\checkpoint.pkl",
-                                   compress=9)  # keyword arguments will be passed to `skopt.dump`
+checkpoint_saver = CheckpointSaver("C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\check\\checkpoint.pkl",)  # keyword arguments will be passed to `skopt.dump`
 try:
     res = load('C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\check\\checkpoint.pkl')
     x0 = res.x_iters
@@ -869,7 +868,7 @@ try:
                 acq_func="gp_hedge",  # the acquisition function
                 n_calls=100,  # the number of evaluations of f
                 callback=[checkpoint_saver],
-                n_random_starts=10,  # the number of random initialization points
+                n_random_starts=5,  # the number of random initialization points
                 noise=0.1 ** 2,  # the noise level (optional)
                 random_state=1234,  # the random seed
                 verbose=True,
@@ -880,9 +879,9 @@ except:
     res = gp_minimize(objective,  # the function to minimize
                       optSpace,  # the bounds on each dimension of x
                       acq_func="gp_hedge",  # the acquisition function
-                      n_calls=100,  # the number of evaluations of f
+                      n_calls=30,  # the number of evaluations of f
                       callback=[checkpoint_saver],
-                      n_random_starts=10,  # the number of random initialization points
+                      n_random_starts=5,  # the number of random initialization points
                       noise=0.1 ** 2,  # the noise level (optional)
                       random_state=1234,  # the random seed
                       verbose=True,

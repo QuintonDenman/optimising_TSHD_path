@@ -79,7 +79,8 @@ class Greedy:
         print(f' Initial total overlap: {overlap}'
               f' \n Initial coverage: {coverage}'
               f' \n Initial pathlen: {pathLen}'
-              f' \n Initial Overall Score: {bestScore}')
+              f' \n Initial Overall Score: {bestScore}'
+              f' \n Initial indexes: {bisInd}')
         # bestIndexs = trueIndexs
         print(self.coverage)
         print(self.pathLen)
@@ -131,9 +132,12 @@ class Greedy:
                     # print(f'{i} / {len(trueIndexs)}')
             pathLen  = bisPath
             coverage = bisCov
-            overlap = bisOL
             trueIndexs = bisInd
             overlapMatrix = bisMatrix
+        print(f' END total overlap: {overlap}'
+              f' \n END coverage: {coverage}'
+              f' \n END pathlen: {pathLen}'
+              f' \n END Overall Score: {bestScore}')
             # pathLen, coverage, overlap, trueIndexs, overlapMatrix = bisPath, bisCov, bisOL, bisInd, bisMatrix
         return bestScore, bisInd
 
