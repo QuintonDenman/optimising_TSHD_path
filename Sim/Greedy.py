@@ -2,14 +2,13 @@
 Simulated Annealing Class
 """
 import random
-import math
-import itertools
+import time
 import pandas as pd
 import numpy as np
 class Greedy:
-    def __init__(self, pathLen, overLap, coverage, iterationLimit, width):
+    def __init__(self, pathLen, path, coverage, iterationLimit, width):
         self.pathLen = pathLen
-        self.overLap = overLap
+        self.path = path
         self.width = width
         self.coverage = coverage
         self.dataDim = len(self.coverage) - 1
@@ -17,6 +16,8 @@ class Greedy:
         self.iterationLimit = iterationLimit
         self.solution = []
         self.solutionCoverage = 0
+        self.sizeOfChunk = 30000
+        self.overlapStorage = pd.DataFrame()
 
     # def intersectionLists(self, mainLst):
     #     '''Expects a list of lists [[], [], ..., []]'''
@@ -33,67 +34,131 @@ class Greedy:
         tmpPathLen = 0
         tmpSolution = []
         overlapMatrix = np.zeros((self.width, self.width))
-        print(f'################################ {self.overLap.shape} ################################'
-              f'\n {self.overLap.shape[0]/35}'
-              f'\n {self.overLap.shape[0]/36}')
-        while tmpCoverage <= 50:
+        l=0
+        while tmpCoverage <= 90:
+            l+=1
+            k=0
             ind = random.randint(0, self.dataDim)
+            while(ind in tmpSolution):
+                # k +=1
+                # if k >= self.dataDim*2:
+                #     print("bag too small??????????????????????????????????????????????????????????????")
+
+                ind = random.randint(0, self.dataDim)
             tmpSolution.append(ind)
-            # print(self.coverage)
             tmpCoverage += self.coverage[ind]
             tmpPathLen += self.pathLen[ind]
-            # try:
-            try:
-                overlapMatrix = np.add(overlapMatrix, self.overLap.iloc[ind*35:((ind+1)*35), :].to_numpy())
-            except ValueError:
-                tmp = self.overLap.iloc[0*35:((1)*35), :].to_numpy()
-                print(f'{ind*35}'
-                      f'\n {(ind+1)*35}'
-                      f'\n {(ind+1)*35-ind*35}'
-                      f'\n IND: {ind}'
-                      f'\n {tmp.shape}')
+            # if ind == 0:
+            #     overlap = pd.read_csv(self.path, delimiter=',', header=None, nrows=300)
+            # else:
+            #     overlap = pd.read_csv(self.path,  delimiter = ',', header = None, skiprows=ind*300, nrows=300)
+            # overlapMatrix = np.add(overlapMatrix, overlap.to_numpy())
+            # overlapMatrix = np.add(overlapMatrix, self.overLap.iloc[ind*300:((ind+1)*300), :].to_numpy())
+            # except ValueError:
+            #     tmp = self.overLap.iloc[0*300:((1)*300), :].to_numpy()
+            #     print(f'{ind*35}'
+            #           f'\n {(ind+1)*35}'
+            #           f'\n {(ind+1)*35-ind*35}'
+            #           f'\n IND: {ind}'
+            #           f'\n {tmp.shape}')
             # except ValueError:
             #     # print(ind)
             #     continue
-        boolMap = np.where(overlapMatrix > 1)
-        total_overlap = np.sum(overlapMatrix[boolMap]) #each initial overlap gets a weight of two, subsquent overlaps increase this by 1
+            # if l%10 == 0:
+            #     print(tmpCoverage)
+            #     print(len(tmpSolution))
+            #     print("--- %s seconds ---" % (time.time() - start_time))
+        #TOdo:
+        # start_time = time.time()
+        # copySol = tmpSolution.copy()
+        # removeFromCopy = []
+        # # boolMap = np.where(overlapMatrix > 1)
+        # start_time = time.time()
+        # if copySol:
+        #     for i, chunk in enumerate(pd.read_csv(self.path, delimiter=',', header=None, chunksize=self.sizeOfChunk)):
+        #         print(chunk.shape)
+        #         for j, k in enumerate(copySol):
+        #             if (k+1)*300 <= self.sizeOfChunk:
+        #                 slChunk = chunk.iloc[k * 300:((k + 1) * 300), :]
+        #                 try:
+        #                     overlapMatrix = np.add(overlapMatrix, slChunk.to_numpy())
+        #                     self.overlapStorage = self.overlapStorage.append(slChunk, ignore_index=True)
+        #                     removeFromCopy.append(j)
+        #                 except ValueError:
+        #                     print(slChunk.shape)
+        #                     print(k*300)
+        #                     continue
+        #
+        #         for e, r in enumerate(removeFromCopy):
+        #             copySol.pop(r)
+        #         removeFromCopy = []
+        # print("--- %s seconds ---" % (time.time() - start_time))
+        # print(f'copy should be empty: {copySol}')
+        # print(f'Shape of appended matrices: {self.overlapStorage.shape}')
+        # boolMap = np.where(overlapMatrix > 1)
+        # total_overlap = np.sum(overlapMatrix[boolMap]) #each initial overlap gets a weight of two, subsquent overlaps increase this by 1
 
-        return tmpPathLen, tmpCoverage, total_overlap, tmpSolution, overlapMatrix
+        return tmpPathLen, tmpCoverage, tmpSolution, #overlapMatrix, total_overlap
 
     # def calculateOverlap(self, allPaths):
     #
-    #     total = np.zeros(self.width, selff.width)
+    #     total = np.zeros(self.width, self.width)
     #     for i, j in enumerate(allPaths):
     #         tmp = pd.allPaths.iloc[j:(j+self.width), :].to_numpy()
     #         total = np.add(tmp, total)
     #     return total
+    # def calcBestScore(self, path, cov, over):
+
 
     def runGreedy(self):
-        pathLen, coverage, overlap, trueIndexs, overlapMatrix = self.randomSolution()
-        bisPath = pathLen
-        bisCov = coverage
-        bisOL = overlap
-        bisInd = trueIndexs
-        bisMatrix = overlapMatrix
-        bestScore = pathLen - (coverage*100) + overlap
-        print(f' Initial total overlap: {overlap}'
+        # pathLen, coverage, overlap, trueIndexs, overlapMatrix = self.randomSolution()
+        pathLen, coverage, trueIndexs = self.randomSolution()
+        # bisMatrix = overlapMatrix
+        bestScore = pathLen - (coverage*100)
+        # bestScore = pathLen - (coverage*100) + overlap
+        print(f' '
               f' \n Initial coverage: {coverage}'
               f' \n Initial pathlen: {pathLen}'
               f' \n Initial Overall Score: {bestScore}'
-              f' \n Initial indexes: {bisInd}')
+              f'')
         # bestIndexs = trueIndexs
-        print(self.coverage)
-        print(self.pathLen)
-        print(len(self.pathLen))
+        print(f' Initial indexes: {trueIndexs}')
         while self.iteration < self.iterationLimit:
             self.iteration += 1
-            print(f'Starting Greedy iteration {self.iteration} of {self.iterationLimit}')
+            if self.iteration %100 ==0:
+                print(f'Starting Greedy iteration {self.iteration} of {self.iterationLimit}')
             ind = random.randint(0, self.dataDim)
+            k=0
             while ind in trueIndexs:
+                k+=1
                 ind = random.randint(0, self.dataDim)
-            print(f'selected index {ind} of {self.dataDim}')
+                if k >= self.dataDim*2:
+                    print("stopping early bag too small??????????????????????????????????????????????????????????????")
+                    print(bisInd)
+                    print(len(bisInd))
+                    print(self.dataDim)
+
+                    return bestScore, bisInd
+            # if ind == 0:
+            #     possibleOverlap = pd.read_csv(self.path, delimiter=',', header=None,
+            #                           nrows=300)
+            # else:
+            #     possibleOverlap = pd.read_csv(self.path, delimiter=',', header=None, skiprows=ind * 300, nrows=300)
+            #DOUBLE CHECK
+            seen = set()
+            for x in trueIndexs:
+                if x not in seen:
+                    seen.add(x)
+                else:
+                    print("Problem mate")
+                    print(x)
+            #TODO:
+            # if ind == 0:
+            #     possibleOverlap = pd.read_csv(self.path, delimiter=',', header=None, nrows=300)
+            # else:
+            #     possibleOverlap = pd.read_csv(self.path,  delimiter = ',', header = None, skiprows=ind*300, nrows=300)
             for i, j in enumerate(trueIndexs):
-                tmpList = trueIndexs
+                tmpList = trueIndexs.copy()
                 tmpCoverage = coverage
                 tmpPathLen = pathLen
                 tmpList[i] = ind    #update temp list with new index
@@ -105,39 +170,44 @@ class Greedy:
                 tmpPathLen += self.pathLen[ind]
                 # print(tmpPathLen)
 
-                tmpOlMatrix = np.subtract(overlapMatrix, self.overLap.iloc[j*35:(j+1)*35, :].to_numpy())
-
+                #Todo:
+                # tmpOlMatrix = np.subtract(overlapMatrix, self.overlapStorage.iloc[i * 300:((i + 1) * 300), :].to_numpy())
+                # tmpOlMatrix = np.add(tmpOlMatrix, possibleOverlap.to_numpy())
                 # boolMap = np.where(tmpOlMatrix > 1)
-                # print(tmpOlMatrix)
-                # print(tmpOlMatrix[boolMap])
                 # total_overlap = np.sum(overlapMatrix[boolMap])
-                # print(f'iteration {j} total_overlap {total_overlap}')
 
-                tmpOlMatrix = np.add(tmpOlMatrix, self.overLap.iloc[ind*35:(ind+1)*35, :].to_numpy())
-                boolMap = np.where(tmpOlMatrix > 1)
-                total_overlap = np.sum(overlapMatrix[boolMap])
+
+
                 # print(f'iteration {ind} total_overlap {total_overlap}')
                 # overlapDiff = tmpOverLap - overlap      #smaller better
                 # covDiff = tmpCoverage - coverage
                 # pathDiff = tmpPathLen - pathLen         #smaller better?
 
-                current = tmpPathLen - (tmpCoverage*100) + total_overlap
+                current = tmpPathLen - (tmpCoverage*100)
+                # current = tmpPathLen - (tmpCoverage*100) + total_overlap
                 if current < bestScore:
                     bestScore = current
-                    bisInd = tmpList
+                    bisInd = tmpList.copy()
                     bisCov = tmpCoverage
                     bisPath = tmpPathLen
-                    bisMatrix = tmpOlMatrix
+                    #TODO:
+                    # matIndex = i
+
+                    # bisMatrix = tmpOlMatrix
                     # print(f'#####%%%%%%%%%%%%%%%%%%%%%%%%### Breaking inner loop ####%%%%%%%%%%%%%%%%%%%%%%%%%%%%%###')
                     # print(f'{i} / {len(trueIndexs)}')
-            pathLen  = bisPath
+            pathLen = bisPath
             coverage = bisCov
             trueIndexs = bisInd
-            overlapMatrix = bisMatrix
-        print(f' END total overlap: {overlap}'
+            # self.overlapStorage.iloc[i * 300:((i + 1) * 300), :]
+            # overlapMatrix = bisMatrix
+            #TODO:
+            # self.overlapStorage
+        print(f''
               f' \n END coverage: {coverage}'
               f' \n END pathlen: {pathLen}'
-              f' \n END Overall Score: {bestScore}')
+              f' \n END Overall Score: {bestScore}'
+              f'')
             # pathLen, coverage, overlap, trueIndexs, overlapMatrix = bisPath, bisCov, bisOL, bisInd, bisMatrix
         return bestScore, bisInd
 

@@ -343,18 +343,7 @@ def generate_local_course(total_length, lengths, mode, max_curvature, step_size)
     return path_x, path_y, path_yaw, directions
 
 
-def plot_arrow(x, y, yaw, length=1.0, width=0.5, fc="r", ec="k"):  # pragma: no cover
-    """
-    Plot arrow
-    """
 
-    if not isinstance(x, float):
-        for (ix, iy, iyaw) in zip(x, y, yaw):
-            plot_arrow(ix, iy, iyaw)
-    else:
-        plt.arrow(x, y, length * np.cos(yaw), length * np.sin(yaw),
-                  fc=fc, ec=ec, head_width=width, head_length=width)
-        plt.plot(x, y)
 
 def getDubinsPath(start_x, start_y, start_angle, end_x, end_y, end_angle, curvature):
     npx, npy, npyaw, mode, clen = dubins_path_planning(start_x, start_y, start_angle,
