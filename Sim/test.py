@@ -196,7 +196,7 @@ def interpolate(ind, length, mode, max_curvature, origin_x, origin_y,
     return path_x, path_y, path_yaw, directions
 
 
-def dubins_path_planning(s_x, s_y, s_yaw, g_x, g_y, g_yaw, c, step_size=1):
+def dubins_path_planning(s_x, s_y, s_yaw, g_x, g_y, g_yaw, c, step_size=0.5):
     """
     Dubins path planner
     input:

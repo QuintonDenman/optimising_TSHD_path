@@ -25,6 +25,8 @@ import linecache
 from pulp import *
 import time
 import matplotlib.pyplot as plt
+from mpl_toolkits import mplot3d
+
 from skopt.plots import plot_convergence
 
 class Position(object):
@@ -195,7 +197,7 @@ class RectangularRoom(object):
         self.dredgeArea = []
         self.dredgeMatrix = np.zeros((self.dredgeAreaWidth, self.dredgeAreaHeight))
         self.resultantEnvForce = 2
-        self.dumpLoc = (width, height)
+        self.dumpLoc = (width, 0)
         self.dredgePerimeter = []
         self.closePerimeter = []
 
@@ -363,7 +365,7 @@ class BaseShip(object):
         """
         self.robotSpeed = speed
         self.robotRoom = room
-        self.robotPosition = Position(self.robotRoom.roomWidth/2, self.robotRoom.roomHeight/2, 225)
+        self.robotPosition = Position(self.robotRoom.roomWidth, 0, 225)
         self.holdCapacity = 583 #based on a dredge track length and cell size (3500m/6m=583.333)
         self.hold = 0
         self.path = []
@@ -635,6 +637,7 @@ def generatePaths(speed, width, height, robot_type, waypointSeperation, nextAngl
                 hold += 1
             elif testRoom.isTileCleaned(tmp, tmp_y[i]):
                 testRoom.dredgeTileAtPosition(tmp, tmp_y[i])
+    pathLen += len(tmp_x)
     x.extend(tmp_x)
     del tmp_x
     y.extend(tmp_y)
@@ -642,7 +645,7 @@ def generatePaths(speed, width, height, robot_type, waypointSeperation, nextAngl
     h.extend(tmp_h)
     del tmp_h
     gc.collect()
-    percentClean = (float(testRoom.getNumCleanedTiles()) / float(testRoom.getNumTiles()))*100
+    percentClean = float(testRoom.getNumCleanedTiles())/float(testRoom.getNumTiles())*100
     # cleanTiles = testRoom.getCleanTiles()
     # for i, _ in cleanTiles.items():
     #     dredgedLoc.append(i)
@@ -686,8 +689,8 @@ def plot_arrow(x, y, yaw, length=1.0, width=0.5, fc="r", ec="k"):  # pragma: no 
 
 
 # === Run code
-setSize = 299
-numOfPaths = 10000
+setSize = 3999
+numOfPaths = 4000
 # (speed, width, height, min_coverage, robot_type, visualize, waypointSeperation, nextAngleConstraint, numOfWaypoints):
 iterator = 0
 # tracemalloc.start()
@@ -697,10 +700,12 @@ bestPath = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD
 optPath = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\opt\\'
 Matrices = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\Matrices\\'
 bestScores = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\bestScores\\'
+bestMatrices = "C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\bestMatrices\\"
 
-optSpace = [Integer(20, 100, name='waypointSeperation'), Integer(1, 10, name='numOfWaypoints')]
+optSpace = [Integer(1, 100, name='waypointSeperation'), Integer(1, 10, name='numOfWaypoints')]
 @use_named_args(dimensions=optSpace)
 def objective(waypointSeperation, numOfWaypoints):
+    start_time = time.time()
     width = 600
     print("Running Simulation")
     print(f'waypointSeperation: {waypointSeperation}')
@@ -714,118 +719,71 @@ def objective(waypointSeperation, numOfWaypoints):
     except FileNotFoundError:
         num_entries = 0
         print(f'number of entries are 0, should be the first run???????????????????????????????????????????????????????')
-    while num_entries <= (numOfPaths-1):
-        print(f'Number of entries = {num_entries}'
-              f'Number of paths = {(numOfPaths-1)}')
-        for k in range(setSize):
-            if not num_entries <= (numOfPaths-1):
-                os.system(
-                    'python "C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\Simulator.py"')
-            start_time = time.time()
-            RobotAvg = generatePaths(0.5, width, width, setDistanceWapoint, waypointSeperation, 30,
-                numOfWaypoints)
-            # saveBest(focPath, dt_string, [RobotAvg[1]])
-            appendToCSV(focPath, hyp_string, RobotAvg[0], RobotAvg[1], RobotAvg[2])
-            # print(RobotAvg[3])
-            # print(RobotAvg[4])
-            # print(RobotAvg[5])
-            pd.DataFrame(RobotAvg[4]).to_csv(Matrices+hyp_string, mode='a', header=False, index=None)
-            appendToCSV1(optPath, hyp_string, [RobotAvg[3], RobotAvg[5]])
-            # snapshot = tracemalloc.take_snapshot()
-            # top_stats = snapshot.statistics('lineno')
-            gc.collect()
+    while num_entries < (numOfPaths-1):
+        # print(f'Number of entries = {num_entries}'
+        #       f'Number of paths = {(numOfPaths-1)}')
+        # for k in range(setSize):
+        #     if not num_entries < (numOfPaths-1):
+        #         print("ending early.")
+        #         print(f'Number of entries = {num_entries}'
+        #               f'Number of paths = {(numOfPaths - 1)}')
+        #         os.system(
+        #             'python "C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\Simulator.py"')
+        RobotAvg = generatePaths(0.5, width, width, setDistanceWapoint, waypointSeperation, 30,
+            numOfWaypoints)
+        appendToCSV(focPath, hyp_string, RobotAvg[0], RobotAvg[1], RobotAvg[2])
+        pd.DataFrame(RobotAvg[4]).to_csv(Matrices+hyp_string, mode='a', header=False, index=None)
+        appendToCSV1(optPath, hyp_string, [RobotAvg[3], RobotAvg[5]])
+        # snapshot = tracemalloc.take_snapshot()
+        # top_stats = snapshot.statistics('lineno')
+        gc.collect()
+        num_entries += 1
+            # if
 
-            if k % 10 == 0 :
-                print(f'set {k} of {setSize}')
-                print("--- %s seconds ---" % (time.time() - start_time))
-                # overlap_data = pd.read_csv(Matrices + hyp_string, delimiter=',', header=None)
-                # print(f'overlap data straight from csv: {overlap_data}')
-                # print(f'overlap data straight from csv: {overlap_data.shape[0] / 35}')
-                # print(f'overlap data straight from csv: {overlap_data.shape}')
-                # print(f'written to: {RobotAvg[4]}')
-                # print(f'written to: {RobotAvg[4].shape}')
-                # print(f'written to: {RobotAvg[4].shape[0]/35}')
-                # print(RobotAvg[4].shape[0]/35)
-                # print("[ Top 10 ]")
-                # for stat in top_stats[:10]:
-                #     print(stat)
-        os.system('python "C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\Simulator.py"')  #restart
-        # pathCollection.append(RobotAvg[1])
-
-    # data, initialSolution, initialTemp, iterationLimit, finalTemp, tempReduction, neighborOperator,
-    # iterationPerTemp=100, alpha=10, beta=5)
-    # subsetSelection = LpP[roblem("Subset Selection", LpMinimize)
-    # subsetSelection += lpSum(objective[]])
-
+        # os.system('python "C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\Simulator.py"')  #restart
     try:
         df = pd.read_csv(bestScores + hyp_string, delimiter=',', header=None)
-        df = df.astype('float64')
-        print(df)
-        num_entries = len(df.index)
-        if num_entries >= 10:
-            best = df.sum(axis=0)
-            # best = best.sum()
-            # if num_cols>0:
-            #     for i,j in
-            best = best/num_entries
+        best = df.iloc[0]
+        best = float(best)
+        print("been here... seen that... ")
+        """ Code to do averages """
+        # df = df.astype('float64')
+        # print(df)
+        # num_entries = len(df.index)
         # if num_entries >= 10:
-        #     for index, value in df.iterrows():
-        #         best = value[0] / dim
-            print(f'already evaluated 10 times, best is: {best.values[0]}')
-            x =best.at[0]
-            return x
-        # for index, value in df.iterrows():
-        # with open(bestScores + hyp_string) as csvfile:
-        # print(f'gooo: {df}')
-        #     best = 0.0
-        #     dim = 0
-        #     for row in reader:
-        #         dim += 1
-        #         print(dim)
-        #         best += float(row)
-        else:
-            opt_data = pd.read_csv(optPath + hyp_string, delimiter=',', names=['coverage', 'path_length'])
-            pl_list = opt_data['path_length'].values.tolist()
-            c_list = opt_data['coverage'].values.tolist()
-            subsetSelection = Greedy.Greedy(pl_list, Matrices + hyp_string, c_list, 500, int(width / 2))
-            print(f'number of random greedy searches: {500}')
-            best, indexs = subsetSelection.runGreedy()
-            appendToCSV1(bestPath, hyp_string, indexs)
-            appendToCSV1(bestScores, hyp_string, [best])
-            return best
+        #     best = df.sum(axis=0)
+        #     best = best/num_entries
+        #     print(f'already evaluated 10 times, best is: {best.values[0]}')
+        #     x =best.at[0]
+        #     return x
+        # else:
+        #     opt_data = pd.read_csv(optPath + hyp_string, delimiter=',', names=['coverage', 'path_length'])
+        #     pl_list = opt_data['path_length'].values.tolist()
+        #     c_list = opt_data['coverage'].values.tolist()
+        #     subsetSelection = Greedy.Greedy(pl_list, Matrices + hyp_string, c_list, 500, int(width / 2))
+        #     print(f'number of random greedy searches: {500}')
+        #     best, indexs = subsetSelection.runGreedy()
+        #     appendToCSV1(bestPath, hyp_string, indexs)
+        #     appendToCSV1(bestScores, hyp_string, [best])
+        #     return best
+        print("--- %s seconds ---" % (time.time() - start_time))
+        gc.collect()
+        return best
     except:
         opt_data = pd.read_csv(optPath+hyp_string, delimiter = ',', names = ['coverage', 'path_length'])
-        # overlap = pd.read_csv(Matrices+hyp_string, delimiter=',', header=None, index_col=False, skiprows=0, nrows=300)
-        # overlap1 = pd.read_csv(Matrices+hyp_string, delimiter=',', header=None, skiprows=300, nrows=300)
-        # overlap2 = pd.read_csv(Matrices+hyp_string, delimiter=',', header=None, index_col=False, nrows=300)
-        # print(f'first: {overlap.shape}, index 0: {overlap[:1]}, index 299: {overlap[:300]}'
-        #       f'second: {overlap1.shape}, index 0: {overlap1[:1]}, index 299: {overlap1[:300]}'
-        #       f'third: {overlap2.shape}, index 0: {overlap2[:1]}, index 599: {overlap2[:300]}')
-        # for _, chunk in enumerate(pd.read_csv(Matrices+hyp_string,  delimiter = ',', header = None, chunksize=300)):
-        #     if overlap.equals(chunk):
-        #         print("SUCCESS!!!")
-        #     if overlap1.equals(chunk):
-        #         print("SUCCESS!!!")
-        #     if overlap2.equals(chunk): print("YIKES")
-        #     # print(f'overlap data straight from csv: {chunk}')
-        #     # print(f'overlap data straight from csv: {chunk.shape[0] / 300}')
-        #     # print(f'overlap data straight from csv: {chunk.shape}')
-        #     overlap_data = overlap_data.append(chunk)
-        # dingle = opt_data['dredged_locations'].values.tolist()
         pl_list = opt_data['path_length'].values.tolist()
         # dl_list = opt_data['dredged_locations'].values.tolist()
         c_list = opt_data['coverage'].values.tolist()
         print(f'number of paths = {len(c_list)}. Expected number = {numOfPaths-1}')
-        subsetSelection = Greedy.Greedy(pl_list, Matrices+hyp_string, c_list, 500, int(width/2))
+        #TODO:
+        # os.mkdir(bestMatrices+hyp_string)
+        subsetSelection = Greedy.Greedy(pl_list, Matrices+hyp_string, c_list, 500, int(width/2), bestMatrices+hyp_string+"\\")
         print(f'number of random greedy searches: {500}')
         best, indexs = subsetSelection.runGreedy()
-        # print(index, best)
-        # df = pd.read_csv(focPath+dt_string)
-        # print(df.shape)
-        # bestFamilyofCurves = df[index]
         appendToCSV1(bestPath, hyp_string, indexs)
         appendToCSV1(bestScores, hyp_string, [best])
-
+        print("--- %s seconds ---" % (time.time() - start_time))
+        gc.collect()
     return best
 
 checkpoint_saver = CheckpointSaver("C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\check\\checkpoint.pkl",)  # keyword arguments will be passed to `skopt.dump`
@@ -853,7 +811,7 @@ if True:
         res = gp_minimize(objective,  # the function to minimize
                           optSpace,  # the bounds on each dimension of x
                           acq_func="gp_hedge",  # the acquisition function
-                          n_calls=10,  # the number of evaluations of f
+                          n_calls=100,  # the number of evaluations of f
                           callback=[checkpoint_saver],
                           n_random_starts=5,  # the number of random initialization points
                           noise=0.1 ** 2,  # the noise level (optional)
@@ -862,66 +820,64 @@ if True:
                           n_jobs=-1)
 
 else:
+    plot_path = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\path\\'
     res = load('C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\check\\checkpoint.pkl')
-    # plot_convergence(res)
-    # plt.show()
+    plot_convergence(res)
+    plt.savefig(plot_path+'convergence.png')
     print(f'Best path length: {res.fun}')
     print(f'best hyperparameters: {res.x}')
     best_hyp = str(res.x[0]) + '_' +str(res.x[1])
-    best_indexs = pd.read_csv(bestPath+best_hyp, delimiter=',', header=None)
-    full_set = pd.read_csv(focPath + best_hyp, delimiter=',', header=None, skipinitialspace=True)
-    full_set.info()
-    print(full_set.shape)
-    # x = []
-    # y = []
-    # print(full_set[0])
-    for index, value in full_set.iterrows():
-    #     if index < 3:
-    #         if index == 0:
-    #             x = value.values[0]
-    #             print(x)
-    #         if index == 1:
-    #             y = value
-    #             print(y)
-    #     else:
-    #         break
-    # for index, value in x.iterrows():
-    #     print(value)
-    # pd.DataFrame.plot()
-    # plt.plot(x[0], y[0], label=best_hyp)
-    # plt.legend()
-    # plt.grid(True)
-    # plt.axis("equal")
-    # plt.show()
-        # else:
-        #     break
-        print(f'index: {index}  value: \n {value}')
-        print(f'test index: {value.index}')
-        print(f'test values: {value.values[0]}')
-    # for i, chunk in enumerate(pd.read_csv(focPath+best_hyp, delimiter=',', header=None, chunksize=30000)):
-    #     for index, value in best_indexs.iterrows():
+    best_score = pd.read_csv(bestScores+best_hyp, delimiter=',', header=None)
 
-        #             if (k+1)*300 <= self.sizeOfChunk:
-        #                 slChunk = chunk.iloc[k * 300:((k + 1) * 300), :]
-        #                 try:
-        #                     overlapMatrix = np.add(overlapMatrix, slChunk.to_numpy())
-        #                     self.overlapStorage = self.overlapStorage.append(slChunk, ignore_index=True)
-        #                     removeFromCopy.append(j)
-        #                 except ValueError:
-        #                     print(slChunk.shape)
-        #                     print(k*300)
-        #                     continue
-    # plt.plot(path_x, path_y, label="final course " + "".join(mode))
-    #
-    # # plotting
-    # plot_arrow(start_x, start_y, start_yaw)
-    # plot_arrow(end_x, end_y, end_yaw)
-    #
-    # plt.legend()
-    # plt.grid(True)
-    # plt.axis("equal")
-    # plt.show()
-#
+    # x = best_score.values
+    # print(x[0])
+    min_index = int(best_score.idxmin())
+    # print(int(min_index))
+    # if min_index == 0:
+    #     best_indexs = pd.read_csv(bestPath+best_hyp, header=None, sep=',', engine='python', index_col=None, nrows=1)
+    # else:
+    #     best_indexs = pd.read_csv(bestPath+best_hyp, header=None, sep=',', engine='python', index_col=None, skiprows=min_index, nrows=1)
+    with open(bestPath+best_hyp, mode='r') as csv_file:
+        reader = csv.reader(csv_file, delimiter=',')
+        for i, row in enumerate(reader):
+            if i == min_index:
+                best_inds = row
+    best_inds = list(map(int, best_inds))
+    full_set = pd.read_csv(focPath + best_hyp, delimiter=',', header=None)
+    # full_set.info()
+    opt_data = pd.read_csv(optPath + best_hyp, delimiter=',', names=['coverage', 'path_length'])
+    pl_list = opt_data['path_length'].values.tolist()
+    x = []
+    y = []
+    count = 0
+    # for index, value in enumerate(best_inds):
+    #     for k,l in enumerate(pl_list):
+    #         while k <= value:
+    #             count += pl_list[k]
+    #         break
+    # x.append(full_set.iloc[0:25,0])
+    # y.append(full_set.iloc[0:25,1])
+    x.append(full_set.iloc[:, 0])
+    y.append(full_set.iloc[:, 1])
+    plt.plot(x[0], y[0], label=best_hyp)
+    plt.legend()
+    plt.grid(True)
+    plt.axis("equal")
+    plt.show()
+
+    fig = plt.figure()
+    ax = plt.axes(projection='3d')
+#     inp = np.linspace(-2, 2, 400).reshape(-1, 1)
+#     fx = [f(x_i, noise_level=0.0) for x_i in x]
+#     plt.plot(x, fx, "r--", label="True (unknown)")
+#     plt.fill(np.concatenate([x, x[::-1]]),
+#              np.concatenate(([fx_i - 1.9600 * noise_level for fx_i in fx],
+#                              [fx_i + 1.9600 * noise_level for fx_i in fx[::-1]])),
+#              alpha=.2, fc="r", ec="None")
+#     plt.legend()
+#     plt.grid()
+#     plt.show()
+# #
 # opt = Optimizer(Integer(1, 15, name='waypointSeperation'))
 
 
