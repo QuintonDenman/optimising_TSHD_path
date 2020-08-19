@@ -25,6 +25,7 @@ import linecache
 from pulp import *
 import time
 import matplotlib.pyplot as plt
+import matplotlib
 from mpl_toolkits import mplot3d
 
 from skopt.plots import plot_convergence
@@ -366,7 +367,7 @@ class BaseShip(object):
         self.robotSpeed = speed
         self.robotRoom = room
         self.robotPosition = Position(self.robotRoom.roomWidth, 0, 225)
-        self.holdCapacity = 583 #based on a dredge track length and cell size (3500m/6m=583.333)
+        self.holdCapacity = 583 #based on a dredge track length and cell size (3500m/7m=583.333)
         self.hold = 0
         self.path = []
         self.pathDredgePercentage = []
@@ -397,14 +398,14 @@ class BaseShip(object):
         """
         self.robotDirection = direction
 
-    def isHoldFull(self, hold):
+    def isHoldFull(self):
         """
         return True if hold is less than max capacity
         return False if hold has reached max capacity
         hold: amount of dirt ship has collected
 
         """
-        if hold >= self.holdCapacity:
+        if self.hold >= self.holdCapacity:
             return True
         return False
 
@@ -595,13 +596,10 @@ def generatePaths(speed, width, height, robot_type, waypointSeperation, nextAngl
     # tmpCollection.append(robot.dumpToPerimeter())
     # tmp_x, tmp_y, tmp_h = robot.dumpToPerimeter()
     tmp_x, tmp_y, tmp_h = robot.firstDredgeRoute(testRoom)
-    if not robot.isHoldFull(robot.hold):
-        for i, tmp in enumerate(tmp_x):
-            if testRoom.isTileDredgable(tmp, tmp_y[i]):
-                testRoom.dredgeTileAtPosition(tmp, tmp_y[i])
-                hold += 1
-            elif testRoom.isTileCleaned(tmp, tmp_y[i]):
-                testRoom.dredgeTileAtPosition(tmp, tmp_y[i])
+    for i, tmp in enumerate(tmp_x):
+        if (not robot.isHoldFull()) and testRoom.isTileDredgable(tmp, tmp_y[i]):
+            testRoom.dredgeTileAtPosition(tmp, tmp_y[i])
+            robot.hold += 1
     pathLen += len(tmp_x)
     x.extend(tmp_x)
     del tmp_x
@@ -612,13 +610,10 @@ def generatePaths(speed, width, height, robot_type, waypointSeperation, nextAngl
     gc.collect()
     for _ in range(robot.numOfWaypoints-1):
         tmp_x, tmp_y, tmp_h = robot.dredgeRoute()
-        if not robot.isHoldFull(robot.hold):
-            for i, tmp in enumerate(tmp_x):
-                if testRoom.isTileDredgable(tmp, tmp_y[i]):
-                    testRoom.dredgeTileAtPosition(tmp, tmp_y[i])
-                    hold += 1
-                elif testRoom.isTileCleaned(tmp, tmp_y[i]):
-                    testRoom.dredgeTileAtPosition(tmp, tmp_y[i])
+        for i, tmp in enumerate(tmp_x):
+            if (not robot.isHoldFull()) and testRoom.isTileDredgable(tmp, tmp_y[i]):
+                testRoom.dredgeTileAtPosition(tmp, tmp_y[i])
+                robot.hold += 1
         pathLen += len(tmp_x)
         x.extend(tmp_x)
         del tmp_x
@@ -630,13 +625,10 @@ def generatePaths(speed, width, height, robot_type, waypointSeperation, nextAngl
 
 
     tmp_x, tmp_y, tmp_h = robot.toDump()
-    if not robot.isHoldFull(robot.hold):
-        for i, tmp in enumerate(tmp_x):
-            if testRoom.isTileDredgable(tmp, tmp_y[i]):
-                testRoom.dredgeTileAtPosition(tmp, tmp_y[i])
-                hold += 1
-            elif testRoom.isTileCleaned(tmp, tmp_y[i]):
-                testRoom.dredgeTileAtPosition(tmp, tmp_y[i])
+    for i, tmp in enumerate(tmp_x):
+        if (not robot.isHoldFull()) and testRoom.isTileDredgable(tmp, tmp_y[i]):
+            testRoom.dredgeTileAtPosition(tmp, tmp_y[i])
+            robot.hold += 1
     pathLen += len(tmp_x)
     x.extend(tmp_x)
     del tmp_x
@@ -686,11 +678,59 @@ def plot_arrow(x, y, yaw, length=1.0, width=0.5, fc="r", ec="k"):  # pragma: no 
         plt.arrow(x, y, length * np.cos(yaw), length * np.sin(yaw),
                   fc=fc, ec=ec, head_width=width, head_length=width)
         plt.plot(x, y)
+def shiftedColorMap(cmap, start=0, midpoint=0.5, stop=1.0, name='shiftedcmap'):
+    '''
+    function taken from
+    https://stackoverflow.com/questions/7404116/...
+        ...defining-the-midpoint-of-a-colormap-in-matplotlib
+    Function to offset the "center" of a colormap. Useful for
+    data with a negative min and positive max and you want the
+    middle of the colormap's dynamic range to be at zero
+
+    Input
+    -----
+      cmap : The matplotlib colormap to be altered
+      start : Offset from lowest point in the colormap's range.
+          Defaults to 0.0 (no lower ofset). Should be between
+          0.0 and `midpoint`.
+      midpoint : The new center of the colormap. Defaults to
+          0.5 (no shift). Should be between 0.0 and 1.0. In
+          general, this should be  1 - vmax/(vmax + abs(vmin))
+          For example if your data range from -15.0 to +5.0 and
+          you want the center of the colormap at 0.0, `midpoint`
+          should be set to  1 - 5/(5 + 15)) or 0.75
+      stop : Offset from highets point in the colormap's range.
+          Defaults to 1.0 (no upper ofset). Should be between
+          `midpoint` and 1.0.
+    '''
+    cdict = {  'red': [],  'green': [], 'blue': [],  'alpha': []  }
+
+    # regular index to compute the colors
+    reg_index = np.linspace(start, stop, 257)
+
+    # shifted index to match the data
+    shift_index = np.hstack([
+        np.linspace(0.0, midpoint, 128, endpoint=False),
+        np.linspace(midpoint, 1.0, 129, endpoint=True)
+    ])
+
+    for ri, si in zip(reg_index, shift_index):
+        r, g, b, a = cmap(ri)
+
+        cdict['red'].append((si, r, r))
+        cdict['green'].append((si, g, g))
+        cdict['blue'].append((si, b, b))
+        cdict['alpha'].append((si, a, a))
+
+    newcmap = matplotlib.colors.LinearSegmentedColormap(name, cdict)
+    plt.register_cmap(cmap=newcmap)
+
+    return newcmap
 
 
 # === Run code
-setSize = 3999
-numOfPaths = 4000
+setSize = 7999
+numOfPaths = 8000
 # (speed, width, height, min_coverage, robot_type, visualize, waypointSeperation, nextAngleConstraint, numOfWaypoints):
 iterator = 0
 # tracemalloc.start()
@@ -741,49 +781,49 @@ def objective(waypointSeperation, numOfWaypoints):
             # if
 
         # os.system('python "C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\Simulator.py"')  #restart
-    try:
-        df = pd.read_csv(bestScores + hyp_string, delimiter=',', header=None)
-        best = df.iloc[0]
-        best = float(best)
-        print("been here... seen that... ")
-        """ Code to do averages """
-        # df = df.astype('float64')
-        # print(df)
-        # num_entries = len(df.index)
-        # if num_entries >= 10:
-        #     best = df.sum(axis=0)
-        #     best = best/num_entries
-        #     print(f'already evaluated 10 times, best is: {best.values[0]}')
-        #     x =best.at[0]
-        #     return x
-        # else:
-        #     opt_data = pd.read_csv(optPath + hyp_string, delimiter=',', names=['coverage', 'path_length'])
-        #     pl_list = opt_data['path_length'].values.tolist()
-        #     c_list = opt_data['coverage'].values.tolist()
-        #     subsetSelection = Greedy.Greedy(pl_list, Matrices + hyp_string, c_list, 500, int(width / 2))
-        #     print(f'number of random greedy searches: {500}')
-        #     best, indexs = subsetSelection.runGreedy()
-        #     appendToCSV1(bestPath, hyp_string, indexs)
-        #     appendToCSV1(bestScores, hyp_string, [best])
-        #     return best
-        print("--- %s seconds ---" % (time.time() - start_time))
-        gc.collect()
-        return best
-    except:
-        opt_data = pd.read_csv(optPath+hyp_string, delimiter = ',', names = ['coverage', 'path_length'])
-        pl_list = opt_data['path_length'].values.tolist()
-        # dl_list = opt_data['dredged_locations'].values.tolist()
-        c_list = opt_data['coverage'].values.tolist()
-        print(f'number of paths = {len(c_list)}. Expected number = {numOfPaths-1}')
-        #TODO:
-        # os.mkdir(bestMatrices+hyp_string)
-        subsetSelection = Greedy.Greedy(pl_list, Matrices+hyp_string, c_list, 500, int(width/2), bestMatrices+hyp_string+"\\")
-        print(f'number of random greedy searches: {500}')
-        best, indexs = subsetSelection.runGreedy()
-        appendToCSV1(bestPath, hyp_string, indexs)
-        appendToCSV1(bestScores, hyp_string, [best])
-        print("--- %s seconds ---" % (time.time() - start_time))
-        gc.collect()
+    # try:
+    #     df = pd.read_csv(bestScores + hyp_string, delimiter=',', header=None)
+    #     best = df.iloc[0]
+    #     best = float(best)
+    #     print("been here... seen that... ")
+    #     """ Code to do averages """
+    #     # df = df.astype('float64')
+    #     # print(df)
+    #     # num_entries = len(df.index)
+    #     # if num_entries >= 10:
+    #     #     best = df.sum(axis=0)
+    #     #     best = best/num_entries
+    #     #     print(f'already evaluated 10 times, best is: {best.values[0]}')
+    #     #     x =best.at[0]
+    #     #     return x
+    #     # else:
+    #     #     opt_data = pd.read_csv(optPath + hyp_string, delimiter=',', names=['coverage', 'path_length'])
+    #     #     pl_list = opt_data['path_length'].values.tolist()
+    #     #     c_list = opt_data['coverage'].values.tolist()
+    #     #     subsetSelection = Greedy.Greedy(pl_list, Matrices + hyp_string, c_list, 500, int(width / 2))
+    #     #     print(f'number of random greedy searches: {500}')
+    #     #     best, indexs = subsetSelection.runGreedy()
+    #     #     appendToCSV1(bestPath, hyp_string, indexs)
+    #     #     appendToCSV1(bestScores, hyp_string, [best])
+    #     #     return best
+    #     print("--- %s seconds ---" % (time.time() - start_time))
+    #     gc.collect()
+    #     return best
+    # except:
+    opt_data = pd.read_csv(optPath+hyp_string, delimiter = ',', names = ['coverage', 'path_length'])
+    pl_list = opt_data['path_length'].values.tolist()
+    # dl_list = opt_data['dredged_locations'].values.tolist()
+    c_list = opt_data['coverage'].values.tolist()
+    print(f'number of paths = {len(c_list)}. Expected number = {numOfPaths-1}')
+    #TODO:
+    # os.mkdir(bestMatrices+hyp_string)
+    subsetSelection = Greedy.Greedy(pl_list, Matrices+hyp_string, c_list, 500, int(width/2), bestMatrices+hyp_string+"\\")
+    print(f'number of random greedy searches: {500}')
+    best, indexs = subsetSelection.runGreedy()
+    appendToCSV1(bestPath, hyp_string, indexs)
+    appendToCSV1(bestScores, hyp_string, [best])
+    print("--- %s seconds ---" % (time.time() - start_time))
+    gc.collect()
     return best
 
 checkpoint_saver = CheckpointSaver("C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\check\\checkpoint.pkl",)  # keyword arguments will be passed to `skopt.dump`
@@ -798,7 +838,7 @@ if True:
                     x0=x0, # already examined values for x
                     y0=y0, # observed values for x0
                     acq_func="gp_hedge",  # the acquisition function
-                    n_calls=100,  # the number of evaluations of f
+                    n_calls=50,  # the number of evaluations of f
                     callback=[checkpoint_saver],
                     n_random_starts=5,  # the number of random initialization points
                     noise=0.1 ** 2,  # the noise level (optional)
@@ -811,7 +851,7 @@ if True:
         res = gp_minimize(objective,  # the function to minimize
                           optSpace,  # the bounds on each dimension of x
                           acq_func="gp_hedge",  # the acquisition function
-                          n_calls=100,  # the number of evaluations of f
+                          n_calls=50,  # the number of evaluations of f
                           callback=[checkpoint_saver],
                           n_random_starts=5,  # the number of random initialization points
                           noise=0.1 ** 2,  # the noise level (optional)
@@ -820,19 +860,27 @@ if True:
                           n_jobs=-1)
 
 else:
-    plot_path = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\path\\'
+    saveme = '_50_5000.png'
+    plot_path = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\plots\\'
+    # plot_path = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\old\\2000_noMat_100bayes_greedyWdel\\'
     res = load('C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\check\\checkpoint.pkl')
+    # res = load('C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\old\\2000_noMat_100bayes_greedyWdel\\check\\checkpoint.pkl')
+    # bestPath = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\old\\2000_noMat_100bayes_greedyWdel\\BestPath\\'
+    # bestScores = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\old\\2000_noMat_100bayes_greedyWdel\\bestScores\\'
+    # focPath = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\old\\2000_noMat_100bayes_greedyWdel\\FamilyofCurves\\'
+    # Matrices = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\old\\2000_noMat_100bayes_greedyWdel\\Matrices\\'
+    # optPath = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\old\\2000_noMat_100bayes_greedyWdel\\opt\\'
     plot_convergence(res)
-    plt.savefig(plot_path+'convergence.png')
+    plt.savefig(plot_path+'convergence'+saveme)
+    plt.show()
     print(f'Best path length: {res.fun}')
     print(f'best hyperparameters: {res.x}')
     best_hyp = str(res.x[0]) + '_' +str(res.x[1])
-    best_score = pd.read_csv(bestScores+best_hyp, delimiter=',', header=None)
 
-    # x = best_score.values
-    # print(x[0])
-    min_index = int(best_score.idxmin())
+    # best_score = pd.read_csv(bestScores+best_hyp, delimiter=',', header=None)
+    # min_index = int(best_score.idxmin()
     # print(int(min_index))
+
     # if min_index == 0:
     #     best_indexs = pd.read_csv(bestPath+best_hyp, header=None, sep=',', engine='python', index_col=None, nrows=1)
     # else:
@@ -840,13 +888,19 @@ else:
     with open(bestPath+best_hyp, mode='r') as csv_file:
         reader = csv.reader(csv_file, delimiter=',')
         for i, row in enumerate(reader):
-            if i == min_index:
-                best_inds = row
+            best_inds = row
+            # if i == min_index:
+            #     best_inds = row
     best_inds = list(map(int, best_inds))
     full_set = pd.read_csv(focPath + best_hyp, delimiter=',', header=None)
     # full_set.info()
     opt_data = pd.read_csv(optPath + best_hyp, delimiter=',', names=['coverage', 'path_length'])
-    pl_list = opt_data['path_length'].values.tolist()
+    best_cov = int(opt_data['coverage'].idxmax())
+    cov_length = int(opt_data['path_length'].iloc[best_cov])
+    path_lengths = opt_data['path_length'].iloc[0:best_cov-1]
+    true_index = int(path_lengths.sum())
+    # pl_list = opt_data['path_length'].values.tolist()
+    # c_list = opt_data['coverage'].values.tolist()
     x = []
     y = []
     count = 0
@@ -855,18 +909,24 @@ else:
     #         while k <= value:
     #             count += pl_list[k]
     #         break
-    # x.append(full_set.iloc[0:25,0])
-    # y.append(full_set.iloc[0:25,1])
-    x.append(full_set.iloc[:, 0])
-    y.append(full_set.iloc[:, 1])
+    x.append(full_set.iloc[true_index:true_index+cov_length,0])
+    y.append(full_set.iloc[true_index:true_index+cov_length,1])
+    # x.append(full_set.iloc[:, 0])
+    # y.append(full_set.iloc[:, 1])
     plt.plot(x[0], y[0], label=best_hyp)
-    plt.legend()
+    # plt.legend()
     plt.grid(True)
-    plt.axis("equal")
+    plt.xlabel("x co-ordinates")
+    plt.ylabel("y co-ordinates")
+    plt.xlim([-100,800])
+    plt.ylim([-100,800])
+    # plt.axis("equal")
+    plt.title("Best path from hyp_parameters:"+best_hyp)
+    plt.savefig(plot_path + 'bestpath' + saveme)
     plt.show()
 
-    fig = plt.figure()
-    ax = plt.axes(projection='3d')
+    # fig = plt.figure()
+    # ax = plt.axes(projection='3d')
 #     inp = np.linspace(-2, 2, 400).reshape(-1, 1)
 #     fx = [f(x_i, noise_level=0.0) for x_i in x]
 #     plt.plot(x, fx, "r--", label="True (unknown)")
@@ -879,6 +939,52 @@ else:
 #     plt.show()
 # #
 # opt = Optimizer(Integer(1, 15, name='waypointSeperation'))
+    try:
+        overlapMatrix = np.load(bestMatrices+best_hyp+".npy")
+    except:
+        overlapMatrix = np.zeros((300,300))
+        for i, chunk in enumerate(pd.read_csv(Matrices+best_hyp, delimiter=',', header=None, chunksize=300, index_col=None, low_memory = False)):
+            for j, k in enumerate(best_inds):
+                if k == i:
+                    arr = chunk.to_numpy()
+                    overlapMatrix = np.add(overlapMatrix, arr)
+                    # np.save(self.bestMatrices+str(k), arr)
+        # boolMap = np.where(overlapMatrix > 1)
+        # total_overlap = np.sum(overlapMatrix[boolMap])
+        np.save(bestMatrices+best_hyp, overlapMatrix)
+    plt.imshow(overlapMatrix)
+    plt.colorbar()
+    plt.title("Dredged Locations")
+    plt.savefig(plot_path + 'dredged_locations'+saveme)
+    plt.show()
+    orig_cmap = matplotlib.cm.viridis
+    shifted_cmap = shiftedColorMap(orig_cmap, midpoint=0, name='shifted')
 
+    plt.imshow(overlapMatrix, interpolation=None, cmap=shifted_cmap)
+    plt.colorbar()
+    plt.title("Dredged Locations shifted colourmap")
+    plt.savefig(plot_path + 'dredged_locations_shifted'+saveme)
+    plt.show()
 
-
+    # scores = []
+    # x = []
+    # y = []
+    # for k in res.x_iters:
+    #     x.append(k[0])
+    #     y.append(k[1])
+    # # for k in np.nditer(res.func_vals):
+    # #     scores
+    #     # scores.extend(pd.read_csv(bestScores + str(l[0])+'_'+str(l[1]) , delimiter=',', header=None).to_list)
+    #
+    # # Make data.
+    # X = x
+    # Y = y
+    # Z = res.func_vals
+    #
+    # fig = plt.figure()
+    # ax = fig.gca(projection='3d')
+    # ax.scatter(X, Y, Z)
+    # ax.set_xlabel('Waypoint Seperation')
+    # ax.set_ylabel('Number of Waypoints')
+    # ax.set_zlabel('Minimum Score Returned by Cost Function')
+    # plt.show()
