@@ -44,7 +44,9 @@ class Greedy:
                 if k >= self.dataDim*5:
                     print("bag too small??????????????????????????????????????????????????????????????")
                     noSolution = True
-                    return tmpPathLen, tmpCoverage, tmpSolution, noSolution, 0, 0
+                    boolMap = np.where(overlapMatrix > 1)
+                    total_overlap = np.sum(overlapMatrix[boolMap])
+                    return tmpPathLen, tmpCoverage, tmpSolution, noSolution, overlapMatrix, total_overlap
                 ind = random.randint(0, self.dataDim)
             tmpMatrix = np.load(self.path+str(ind)+'.npy')
             boolMap = np.where(tmpMatrix > 0)
@@ -86,7 +88,12 @@ class Greedy:
         pathLen, coverage, trueIndexs, noSolution, overlapMatrix, overlap = self.randomSolution()
         # pathLen, coverage, trueIndexs, noSolution = self.randomSolution()
         if noSolution == True:
-            return 900000000, [0]
+            # bestScore, bisInd, bisCov, bisPath
+            boolMap = np.where(overlapMatrix > 0)
+            cover = overlapMatrix[boolMap].size
+
+            percent_covered = (cover / (300 * 300)) * 100
+            return 900000000, trueIndexs, percent_covered, pathLen
         # bisMatrix = overlapMatrix
         bestScore = pathLen - coverage + overlap
         # bestScore = pathLen - (coverage*100) + overlap
@@ -172,5 +179,5 @@ class Greedy:
               f' \n END Overall Score: {bestScore}'
               f'')
             # pathLen, coverage, overlap, trueIndexs, overlapMatrix = bisPath, bisCov, bisOL, bisInd, bisMatrix
-        return bestScore, bisInd
+        return bestScore, bisInd, bisCov, bisPath
 
