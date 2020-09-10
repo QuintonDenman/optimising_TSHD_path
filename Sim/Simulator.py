@@ -70,109 +70,63 @@ class Position(object):
         return Position(x, y, angle)
 
 
-    # def getNewPosition(self, angle, speed):
-    #     """
-    #     Computes and returns the new Position after a single clock-tick has
-    #     passed, with this object as the current position, and with the
-    #     specified angle and speed.
+    # def getRightTurn(self, angle, speed, deltaTime=1):
     #
-    #     Does NOT test whether the returned position fits inside the room.
-    #
-    #     angle: integer representing angle in degrees, 0 <= angle < 360
-    #     speed: positive float representing speed
-    #
-    #     Returns: a Position object representing the new position.
-    #     """
-    #     # if angle > 30:
-    #     #     angle = 30
-    #     # elif angle < -30:
-    #     #     angle = -30
+    #     angular_speed = (speed / self.turningRadius) * -1
     #     old_x, old_y = self.getX(), self.getY()
-    #     # Compute the change in position
-    #     delta_y = speed * math.cos(math.radians(angle))
-    #     delta_x = speed * math.sin(math.radians(angle))
-    #     # Add that to the existing position
+    #     phi_s = math.radians(angle)
+    #     new_x = old_x + self.turningRadius * math.sin(phi_s) + self.turningRadius * math.sin(angular_speed *
+    #                                                                                          deltaTime - phi_s)
+    #     new_y = old_y + self.turningRadius * math.cos(phi_s) - self.turningRadius * math.cos(angular_speed * deltaTime - phi_s)
+    #     new_heading = math.degrees(phi_s - angular_speed * deltaTime)
+    #     return Position(new_x, new_y, new_heading)
+    #
+    # def getLeftTurn(self, angle, speed, deltaTime=1):
+    #
+    #     angular_speed = speed/ self.turningRadius
+    #     old_x, old_y = self.getX(), self.getY()
+    #     phi_s = math.radians(angle)
+    #     new_x = old_x - self.turningRadius * math.sin(phi_s) + self.turningRadius * \
+    #             math.sin(angular_speed*deltaTime + phi_s)
+    #     new_y = old_y - self.turningRadius * math.cos(phi_s) + self.turningRadius * \
+    #             math.cos(angular_speed*deltaTime + phi_s)
+    #     new_heading = math.degrees(phi_s + angular_speed * deltaTime)
+    #     return Position(new_x, new_y, new_heading)
+    #
+    #
+    # def getStraightMove(self, angle, speed):
+    #     old_x, old_y = self.getX(), self.getY()
+    #     delta_y = speed * math.sin(math.radians(angle))
+    #     delta_x = speed * math.cos(math.radians(angle))
     #     new_x = old_x + delta_x
     #     new_y = old_y + delta_y
-    #     return Position(new_x, new_y)
-
-    def getRightTurn(self, angle, speed, deltaTime=1):
-        # angle = math.radians(angle)
-        # old_x, old_y = self.getX(), self.getY()
-        # relative_start_angle = 90-angle
-        # delta_phi = (speed*deltaTime) / (2 * math.pi * self.turningRadius)
-        # alpha = (math.pi - delta_phi)/2
-        # beta = alpha + (relative_start_angle - math.pi/2)
-        # A = self.turningRadius * (math.sin(delta_phi) / math.sin(alpha))
-        # delta_x = A*math.cos(beta)
-        # delta_y = A*math.sin(beta)
-        # new_x = old_x + delta_x
-        # new_y = delta_y - old_y #origin of tkinter is always top left
-        # new_angle = relative_start_angle + delta_phi
-        # return Position(new_x, new_y, math.degrees(new_angle))
-        angular_speed = (speed / self.turningRadius) * -1
-        old_x, old_y = self.getX(), self.getY()
-        phi_s = math.radians(angle)
-        new_x = old_x + self.turningRadius * math.sin(phi_s) + self.turningRadius * math.sin(angular_speed *
-                                                                                             deltaTime - phi_s)
-        new_y = old_y + self.turningRadius * math.cos(phi_s) - self.turningRadius * math.cos(angular_speed * deltaTime - phi_s)
-        new_heading = math.degrees(phi_s - angular_speed * deltaTime)
-        return Position(new_x, new_y, new_heading)
-
-    def getLeftTurn(self, angle, speed, deltaTime=1):
-        # old_x, old_y = self.getX(), self.getY()
-        # relative_start_angle = 90-angle
-        # delta_phi = (speed*deltaTime) / (2 * math.pi * self.turningRadius)
-        # alpha = (math.pi - delta_phi)/2
-        # beta = alpha - (relative_start_angle - math.pi/2)
-        # A = self.turningRadius * (math.sin(delta_phi) / math.sin(alpha))
-        # delta_x = A*math.cos(beta)
-        # delta_y = A*math.sin(beta)
-        # new_x = old_x + delta_x
-        # new_y = delta_y - old_y #origin of tkinter is always top left
-        # new_angle = relative_start_angle+delta_phi
-        # return Position(new_x, new_y, math.degrees(new_angle))
-        angular_speed = speed/ self.turningRadius
-        old_x, old_y = self.getX(), self.getY()
-        phi_s = math.radians(angle)
-        new_x = old_x - self.turningRadius * math.sin(phi_s) + self.turningRadius * \
-                math.sin(angular_speed*deltaTime + phi_s)
-        new_y = old_y - self.turningRadius * math.cos(phi_s) + self.turningRadius * \
-                math.cos(angular_speed*deltaTime + phi_s)
-        new_heading = math.degrees(phi_s + angular_speed * deltaTime)
-        return Position(new_x, new_y, new_heading)
-
-
-
-
-
-    def getStraightMove(self, angle, speed):
-        old_x, old_y = self.getX(), self.getY()
-        delta_y = speed * math.sin(math.radians(angle))
-        delta_x = speed * math.cos(math.radians(angle))
-        new_x = old_x + delta_x
-        new_y = old_y + delta_y
-        return Position(new_x, new_y, angle)
-
-    # def getStraightMove(self, angle, speed, time=1):
-    #     x, y = self.getX(), self.getY()
-    #     for i in range(time):
-    #         delta_y = speed * math.cos(math.radians(angle))
-    #         delta_x = speed * math.sin(math.radians(angle))
-    #         x = x + delta_x
-    #         y = y + delta_y
-    #     return Position(x, y, angle)
+    #     return Position(new_x, new_y, angle)
 
     def getConstrainedRandomAngle(self, constraint):
         return random.randrange(-constraint, constraint)
+
+    # def getConstrainedRandomPosition(self, pos, loc_constraint, angle_constraint):
+    #     x = int(pos.getX())
+    #     y = int(pos.getY())
+    #     angle = pos.getHeading()
+    #     new_x = random.randint(max(x - loc_constraint, 0), min(x + loc_constraint, 600))
+    #     new_y = random.randint(max(y - loc_constraint, 0), min(y + loc_constraint, 600))
+    #     new_angle = -(math.atan2(y - new_y, x - new_x))
+    #     return Position(new_x, new_y, new_angle)
 
     def getConstrainedRandomPosition(self, pos, loc_constraint, angle_constraint):
         x = int(pos.getX())
         y = int(pos.getY())
         angle = pos.getHeading()
-        new_x = random.randint(max(x - loc_constraint, 0), min(x + loc_constraint, 600)) #TODO: fix hardcoded dimension
-        new_y = random.randint(max(y - loc_constraint, 0), min(y + loc_constraint, 600))
-        new_angle = -(math.atan2(y - new_y, x - new_x))
+        angle = (math.degrees(angle))
+        random_angle = random.uniform(angle-angle_constraint, angle+angle_constraint)
+        random_angle = math.radians(random_angle)
+        new_x = x + (loc_constraint * math.cos(random_angle))
+        new_y = y + (loc_constraint * math.sin(random_angle))
+        new_angle = math.atan2(new_y - y, new_x - x)
+        # print(f'old x: {x}, new x: {new_x}'
+        #       f'\n old y: {y}, new y: {new_y}'
+        #       f'\n old angle: {angle}, new angle: {math.degrees(new_angle)}')
         return Position(new_x, new_y, new_angle)
 
 
@@ -202,7 +156,6 @@ class RectangularRoom(object):
         self.dredgeMatrix = np.zeros((self.dredgeAreaWidth, self.dredgeAreaHeight))
         self.resultantEnvForce = 2
         self.dumpLoc = (600, 0)
-        self.dumpLocBaseline = (450, 0)
         self.dredgePerimeter = []
         self.closePerimeter = []
 
@@ -286,10 +239,22 @@ class RectangularRoom(object):
 
     def getinformedPosition(self, prevDredged, pos):
         tmp = np.where(prevDredged == np.amin(prevDredged))
-        coord = [co for co in zip(tmp[0], tmp[1])]
-        ind = random.randint(0, len(coord)-1)
-        new_angle = -(math.atan2(pos.getY() - coord[ind][1], pos.getX() - coord[ind][0]))
-        return Position((coord[ind][0]+300), (300+coord[ind][1]), new_angle)
+        try:
+            coord = [co for co in zip(tmp[0], tmp[1])]
+            ind = random.randint(0, len(coord) - 1)
+            new_angle = math.atan2(coord[ind][1] - pos.getY(), coord[ind][0] - pos.getX())
+            return Position((coord[ind][0] + 300), (300 + coord[ind][1]), new_angle)
+        except IndexError:
+            print(f'tmp values: {tmp}')
+            print(f'tmp size: {tmp.size}')
+            print(f'tmp chosen y: {tmp[0][1]} and x:{tmp[0][0]}')
+            if random.random > 0.5:
+                new_angle = math.atan2(tmp[0][1] - pos.getY(), tmp[0][0] - pos.getX())
+                return Position((tmp[0][0] + 300), (300 + tmp[0][1]), new_angle)
+            else:
+                new_angle = math.atan2(tmp[-1][1] - pos.getY(), tmp[-1][0] - pos.getX())
+                return Position((tmp[-1][0] + 300), (300 + tmp[-1][1]), new_angle)
+
 
     def getRandomPosition(self):
         """
@@ -308,16 +273,43 @@ class RectangularRoom(object):
         y = int(pos.getY())
         new_x = random.randint(300, 600-distance)
         new_y = random.randint(300, 550)
-        new_angle = -(math.atan2(y-new_y, x - new_x))
+        new_angle = math.atan2(new_y-y, new_x - x)
         return Position(new_x, new_y, new_angle)
 
-    def getRandomPosSetAngle2(self, pos, distance):
+    def getPerimeterPoint(self, distance):
+        y = 300
+        x = random.randint(300,(600-distance))
+        angle = math.radians(90)
+        return Position(x, y, angle)
+
+    def getPerimeterPointReturn(self, pos):
+        y = 300
+        x = int(pos.getX())
+        angle = math.radians(270)
+        return Position(x, y, angle)
+
+    def getbaselinePoint1(self, pos):
+        x = int(pos.getX())
+        y = int(pos.getY())
+        angle = math.radians(90)
+        new_y = y + random.randint(100,250)
+        return Position(x, new_y, angle)
+
+    def getbaselinePoint2(self, pos, distance):
         x = int(pos.getX())
         y = int(pos.getY())
         new_x = x+distance
         new_y = y
-        new_angle = -math.atan2(new_y-self.dumpLocBaseline[1], new_x - self.dumpLocBaseline[0])
+        new_angle = math.radians(270)
         return Position(new_x, new_y, new_angle)
+
+    # def getRandomPosSetAngle2(self, pos, distance):
+    #     x = int(pos.getX())
+    #     y = int(pos.getY())
+    #     new_x = x+distance
+    #     new_y = y
+    #     new_angle = math.atan2(new_y-self.dumpLocBaseline[1], new_x - self.dumpLocBaseline[0])
+    #     return Position(new_x, new_y, new_angle)
 
     def isPositionInRoom(self, pos):
         """
@@ -364,7 +356,7 @@ class BaseShip(object):
     time1-step.
     """
 
-    def __init__(self, room, speed, waypointSeperation, nextAngleConstraint,
+    def __init__(self, room, speed, waypointSeperation,
         numOfWaypoints):
         """
         Initializes a Robot with the given speed in the specified
@@ -391,7 +383,6 @@ class BaseShip(object):
         self.environmentForceDirection = 0
         #parameters
         self.waypointSeperation = waypointSeperation
-        self.nextAngleConstraint = nextAngleConstraint
         self.numOfWaypoints = numOfWaypoints
 
     def getRobotPosition(self):
@@ -424,13 +415,24 @@ class BaseShip(object):
             return True
         return False
 class baseline(BaseShip):
-    def firstDredgePoint(self, room, dis):
-        currentPosition = Position(room.dumpLocBaseline[0], room.dumpLocBaseline[1], math.radians(90))
-        randomPos = room.getRandomPosSetAngle1(currentPosition, dis)
-        # print(currentPosition.getHeading())
+    def perimeterPoint(self, room, dis):
+        currentPosition = Position(room.dumpLoc[0], room.dumpLoc[1], math.radians(90))
+        perimeterPos = room.getPerimeterPoint(dis)
         dx, dy, dangle = Dubins.main(currentPosition.getX(), currentPosition.getY(),
-                                              currentPosition.getHeading(), randomPos.getX(),
-                                              randomPos.getY(), randomPos.getHeading(),
+                                              currentPosition.getHeading(), perimeterPos.getX(),
+                                              perimeterPos.getY(), perimeterPos.getHeading(),
+                                              currentPosition.turningRadius)
+        gc.collect()
+        newPos = currentPosition.setPosition(dx[-1], dy[-1], dangle[-1])
+        self.robotPosition = newPos
+        return dx, dy, dangle
+
+    def firstDredgePoint(self, room, dis):
+        currentPosition = self.getRobotPosition()
+        perimeterPos = room.getbaselinePoint1(currentPosition)
+        dx, dy, dangle = Dubins.main(currentPosition.getX(), currentPosition.getY(),
+                                              currentPosition.getHeading(), perimeterPos.getX(),
+                                              perimeterPos.getY(), perimeterPos.getHeading(),
                                               currentPosition.turningRadius)
         gc.collect()
         newPos = currentPosition.setPosition(dx[-1], dy[-1], dangle[-1])
@@ -439,8 +441,7 @@ class baseline(BaseShip):
 
     def secoundDredgePoint(self, room, dis):
         currentPosition = self.getRobotPosition()
-        randomPos = room.getRandomPosSetAngle2(currentPosition, dis)
-        # angle = randomPos.getHeading()+math.radians(100)
+        randomPos = room.getbaselinePoint2(currentPosition, dis)
         dx, dy, dangle = Dubins.main(currentPosition.getX(), currentPosition.getY(),
                                               currentPosition.getHeading(), randomPos.getX(),
                                               randomPos.getY(), randomPos.getHeading(),
@@ -450,11 +451,23 @@ class baseline(BaseShip):
         self.robotPosition = newPos
         return dx, dy, dangle
 
+    def perimeterPointReturn(self, room, dis):
+        currentPosition = self.getRobotPosition()
+        perimeterPos = room.getPerimeterPointReturn(currentPosition)
+        dx, dy, dangle = Dubins.main(currentPosition.getX(), currentPosition.getY(),
+                                              currentPosition.getHeading(), perimeterPos.getX(),
+                                              perimeterPos.getY(), perimeterPos.getHeading(),
+                                              currentPosition.turningRadius)
+        gc.collect()
+        newPos = currentPosition.setPosition(dx[-1], dy[-1], dangle[-1])
+        self.robotPosition = newPos
+        return dx, dy, dangle
+
     def toDump(self):
-        dump_x, dump_y = self.robotRoom.dumpLocBaseline
+        dump_x, dump_y = self.robotRoom.dumpLoc
         currentPosition = self.getRobotPosition()
         # endAngle = math.radians(270)
-        endAngle = -math.atan2(currentPosition.getY()-dump_y, currentPosition.getX() - dump_x)
+        endAngle = math.atan2(dump_y-currentPosition.getY(), dump_x - currentPosition.getX())
         dx, dy, dangle = Dubins.main(currentPosition.getX(), currentPosition.getY(),
                                               currentPosition.getHeading(), dump_x, dump_y, endAngle,
                                               currentPosition.turningRadius)
@@ -464,11 +477,12 @@ class baseline(BaseShip):
         return dx, dy, dangle
 
 class setDistanceWapoint(BaseShip):
-    def firstDredgeRoute(self, room, usless):
+    def firstDredgeRoute(self, room):
         currentPosition = self.getRobotPosition()
         randomPos = room.getRandomDredgePosition()
+        endAngle = math.atan2(randomPos.getY() - currentPosition.getY(), randomPos.getX() - currentPosition.getX())
         dx, dy, dangle = Dubins.main(currentPosition.getX(), currentPosition.getY(),
-                                              currentPosition.getHeading(), randomPos.getX(),
+                                              endAngle, randomPos.getX(),
                                               randomPos.getY(), randomPos.getHeading(),
                                               currentPosition.turningRadius)
         gc.collect()
@@ -479,8 +493,9 @@ class setDistanceWapoint(BaseShip):
     def firstDredgeRouteEven(self, room, recuringMatrix):
         currentPosition = self.getRobotPosition()
         evenPos = room.getinformedPosition(recuringMatrix, currentPosition)
+        endAngle = math.atan2(evenPos.getY() - currentPosition.getY(), evenPos.getX() - currentPosition.getX())
         dx, dy, dangle = Dubins.main(currentPosition.getX(), currentPosition.getY(),
-                                              currentPosition.getHeading(), evenPos.getX(),
+                                              endAngle, evenPos.getX(),
                                               evenPos.getY(), evenPos.getHeading(),
                                               currentPosition.turningRadius)
         gc.collect()
@@ -488,20 +503,19 @@ class setDistanceWapoint(BaseShip):
         self.robotPosition = newPos
         return dx, dy, dangle
 
-    def dredgeRoute(self, useless, lessuse):
+    def dredgeRoute(self, angleConstraint):
         currentPosition = self.getRobotPosition()
-        constrainedPos = currentPosition.getConstrainedRandomPosition(currentPosition, self.waypointSeperation,
-                                                                      self.nextAngleConstraint)
+        constrainedPos = currentPosition.getConstrainedRandomPosition(currentPosition, self.waypointSeperation, angleConstraint)
         while int(currentPosition.getX()) == int(constrainedPos.getX()) and \
                 int(currentPosition.getY()) == int(constrainedPos.getY()):
-            constrainedPos = currentPosition.getConstrainedRandomPosition(currentPosition, self.waypointSeperation,
-                                                                          self.nextAngleConstraint)
+            constrainedPos = currentPosition.getConstrainedRandomPosition(currentPosition, self.waypointSeperation)
         dx, dy, dangle = Dubins.main(currentPosition.getX(), currentPosition.getY(),
                                               currentPosition.getHeading(), constrainedPos.getX(),
                                               constrainedPos.getY(), constrainedPos.getHeading(),
                                               currentPosition.turningRadius)
         gc.collect()
         newPos = currentPosition.setPosition(dx[-1], dy[-1], dangle[-1])
+        # print(f'x: {dx[-1]}, y: {dy[-1]}, angle: {math.degrees(dangle[-1])}')
         self.robotPosition = newPos
         return dx, dy, dangle
 
@@ -510,21 +524,21 @@ class setDistanceWapoint(BaseShip):
         constrainedPos = room.getinformedPosition(recuringMatrix, currentPosition)
         while int(currentPosition.getX()) == int(constrainedPos.getX()) and \
                 int(currentPosition.getY()) == int(constrainedPos.getY()):
-            constrainedPos = currentPosition.getConstrainedRandomPosition(currentPosition, self.waypointSeperation,
-                                                                          self.nextAngleConstraint)
+            constrainedPos = room.getinformedPosition(currentPosition, self.waypointSeperation)
         dx, dy, dangle = Dubins.main(currentPosition.getX(), currentPosition.getY(),
                                               currentPosition.getHeading(), constrainedPos.getX(),
                                               constrainedPos.getY(), constrainedPos.getHeading(),
                                               currentPosition.turningRadius)
         gc.collect()
         newPos = currentPosition.setPosition(dx[-1], dy[-1], dangle[-1])
+
         self.robotPosition = newPos
         return dx, dy, dangle
 
     def toDump(self):
         dump_x, dump_y = self.robotRoom.dumpLoc
         currentPosition = self.getRobotPosition()
-        endAngle = -(math.atan2(currentPosition.getY() - dump_y, currentPosition.getX() - dump_x))
+        endAngle = (math.atan2(dump_y - currentPosition.getY(), dump_x - currentPosition.getX()))
         dx, dy, dangle = Dubins.main(currentPosition.getX(), currentPosition.getY(),
                                               currentPosition.getHeading(), dump_x, dump_y, endAngle,
                                               currentPosition.turningRadius)
@@ -533,94 +547,93 @@ class setDistanceWapoint(BaseShip):
         self.hold = 0
         return dx, dy, dangle
 
-class evenDistribution(BaseShip):
-
-    def firstDredgeRoute(self, room, recuringMatrix):
-        currentPosition = self.getRobotPosition()
-        evenPos = room.getinformedPosition(recuringMatrix, currentPosition)
-        dx, dy, dangle = Dubins.main(currentPosition.getX(), currentPosition.getY(),
-                                              currentPosition.getHeading(), evenPos.getX(),
-                                              evenPos.getY(),evenPos.getHeading(),
-                                              currentPosition.turningRadius)
-        gc.collect()
-        newPos = currentPosition.setPosition(dx[-1], dy[-1], dangle[-1])
-        self.robotPosition = newPos
-        return dx, dy, dangle
-
-
-    def dredgeRoute(self, room, recuringMatrix):
-        currentPosition = self.getRobotPosition()
-        constrainedPos = room.getinformedPosition(recuringMatrix, currentPosition)
-        while int(currentPosition.getX()) == int(constrainedPos.getX()) and \
-                int(currentPosition.getY()) == int(constrainedPos.getY()):
-            constrainedPos = currentPosition.getConstrainedRandomPosition(currentPosition, self.waypointSeperation,
-                                                                          self.nextAngleConstraint)
-            # print("it actually happened")
-        # try:
-        dx, dy, dangle = Dubins.main(currentPosition.getX(), currentPosition.getY(),
-                                              currentPosition.getHeading(), constrainedPos.getX(),
-                                              constrainedPos.getY(), constrainedPos.getHeading(),
-                                              currentPosition.turningRadius)
-        gc.collect()
-        # except:
-        #     MemoryError
-        #     print(f'length of one dangle: { len(px)}')
-        # if not self.isHoldFull(self.hold):
-        #     for i, tmp in enumerate(dx):
-        #         if self.robotRoom.isTileDredgable(tmp, dy[i]) and not self.robotRoom.isTileCleaned(tmp, dy[i]):
-        #             print("dredgeRoute")
-        #             print(tmp, dy[i])
-        #             self.robotRoom.dredgeTileAtPosition(tmp, dy[i])
-        #             self.hold += 1
-        # self.path.append([px, py, pangle])
-
-        # try:
-        newPos = currentPosition.setPosition(dx[-1], dy[-1], dangle[-1])
-        # except IndexError:
-        #     # print(f'current: {currentPosition.getPos()} \n'
-        #     #       f'planned: {constrainedPos.getPos()}')
-        #     print(f'currentPosition.getX(): {currentPosition.getX()} \n'
-        #           f'currentPosition.getY(): {currentPosition.getY()} \n'
-        #           f'currentPosition.getHeading(): {currentPosition.getHeading()} \n'
-        #           f'constrainedPos.getX(): {constrainedPos.getX()} \n'
-        #           f'constrainedPos.getY(): {constrainedPos.getY()} \n'
-        #           f'constrainedPos.getHeading(): {constrainedPos.getHeading()}')
-        #     if len(dx) == 0: newPos = currentPosition.setPosition(constrainedPos.getX(), dy[-1], dangle[-1])
-        #     elif len(dy) == 0: newPos = currentPosition.setPosition(dx[-1], constrainedPos.getY(), dangle[-1])
-        self.robotPosition = newPos
-        return dx, dy, dangle
-
-    # def currentToPerimeter(self):
-    #     dump_x, dump_y = self.robotRoom.dumpLoc
-    #     currentPosition = self.getRobotPosition()
-    #     perimeterIndex = random.randint(0, (len(self.robotRoom.closePerimeter) - 1))
-    #     perimeter_x, perimeter_y = self.robotRoom.closePerimeter[perimeterIndex]
-    #     endAngle = (math.atan2(currentPosition.getX() - dump_x, currentPosition.getY() - dump_y))
-    #     px, py, pangle = Dubins.getDubinsPath(currentPosition.getX(), currentPosition.getY(),
-    #                                           currentPosition.getHeading(), perimeter_x, perimeter_y, endAngle,
-    #                                           currentPosition.turningRadius)
-    #     print(len(px))
-    #     if not self.isHoldFull(self.hold):
-    #         for i, tmp in enumerate(px):
-    #             if self.robotRoom.isTileDredgable and not self.robotRoom.isTileCleaned(tmp, py[i]):
-    #                 self.robotRoom.dredgeTileAtPosition(tmp, py[i])
-    #                 self.hold += 1
-    #     # self.path.append([px, py, pangle])
-    #     newPos = currentPosition.setPosition(px[-1], py[-1], pangle[-1])
-    #     self.robotPosition = newPos
-    #     return px, py, pangle
-
-    def toDump(self):
-        dump_x, dump_y = self.robotRoom.dumpLoc
-        currentPosition = self.getRobotPosition()
-        endAngle = -(math.atan2(currentPosition.getY() - dump_y, currentPosition.getX() - dump_x))
-        dx, dy, dangle = Dubins.main(currentPosition.getX(), currentPosition.getY(),
-                                              currentPosition.getHeading(), dump_x, dump_y, endAngle,
-                                              currentPosition.turningRadius)
-        newPos = currentPosition.setPosition(dx[-1], dy[-1], dangle[-1])
-        self.robotPosition = newPos
-        self.hold = 0
-        return dx, dy, dangle
+# class evenDistribution(BaseShip):
+#
+#     def firstDredgeRoute(self, room, recuringMatrix):
+#         currentPosition = self.getRobotPosition()
+#         evenPos = room.getinformedPosition(recuringMatrix, currentPosition)
+#         dx, dy, dangle = Dubins.main(currentPosition.getX(), currentPosition.getY(),
+#                                               currentPosition.getHeading(), evenPos.getX(),
+#                                               evenPos.getY(),evenPos.getHeading(),
+#                                               currentPosition.turningRadius)
+#         gc.collect()
+#         newPos = currentPosition.setPosition(dx[-1], dy[-1], dangle[-1])
+#         self.robotPosition = newPos
+#         return dx, dy, dangle
+#
+#
+#     def dredgeRoute(self, room, recuringMatrix):
+#         currentPosition = self.getRobotPosition()
+#         constrainedPos = room.getinformedPosition(recuringMatrix, currentPosition)
+#         while int(currentPosition.getX()) == int(constrainedPos.getX()) and \
+#                 int(currentPosition.getY()) == int(constrainedPos.getY()):
+#             constrainedPos = currentPosition.getConstrainedRandomPosition(currentPosition, self.waypointSeperation)
+#             # print("it actually happened")
+#         # try:
+#         dx, dy, dangle = Dubins.main(currentPosition.getX(), currentPosition.getY(),
+#                                               currentPosition.getHeading(), constrainedPos.getX(),
+#                                               constrainedPos.getY(), constrainedPos.getHeading(),
+#                                               currentPosition.turningRadius)
+#         gc.collect()
+#         # except:
+#         #     MemoryError
+#         #     print(f'length of one dangle: { len(px)}')
+#         # if not self.isHoldFull(self.hold):
+#         #     for i, tmp in enumerate(dx):
+#         #         if self.robotRoom.isTileDredgable(tmp, dy[i]) and not self.robotRoom.isTileCleaned(tmp, dy[i]):
+#         #             print("dredgeRoute")
+#         #             print(tmp, dy[i])
+#         #             self.robotRoom.dredgeTileAtPosition(tmp, dy[i])
+#         #             self.hold += 1
+#         # self.path.append([px, py, pangle])
+#
+#         # try:
+#         newPos = currentPosition.setPosition(dx[-1], dy[-1], dangle[-1])
+#         # except IndexError:
+#         #     # print(f'current: {currentPosition.getPos()} \n'
+#         #     #       f'planned: {constrainedPos.getPos()}')
+#         #     print(f'currentPosition.getX(): {currentPosition.getX()} \n'
+#         #           f'currentPosition.getY(): {currentPosition.getY()} \n'
+#         #           f'currentPosition.getHeading(): {currentPosition.getHeading()} \n'
+#         #           f'constrainedPos.getX(): {constrainedPos.getX()} \n'
+#         #           f'constrainedPos.getY(): {constrainedPos.getY()} \n'
+#         #           f'constrainedPos.getHeading(): {constrainedPos.getHeading()}')
+#         #     if len(dx) == 0: newPos = currentPosition.setPosition(constrainedPos.getX(), dy[-1], dangle[-1])
+#         #     elif len(dy) == 0: newPos = currentPosition.setPosition(dx[-1], constrainedPos.getY(), dangle[-1])
+#         self.robotPosition = newPos
+#         return dx, dy, dangle
+#
+#     # def currentToPerimeter(self):
+#     #     dump_x, dump_y = self.robotRoom.dumpLoc
+#     #     currentPosition = self.getRobotPosition()
+#     #     perimeterIndex = random.randint(0, (len(self.robotRoom.closePerimeter) - 1))
+#     #     perimeter_x, perimeter_y = self.robotRoom.closePerimeter[perimeterIndex]
+#     #     endAngle = (math.atan2(currentPosition.getX() - dump_x, currentPosition.getY() - dump_y))
+#     #     px, py, pangle = Dubins.getDubinsPath(currentPosition.getX(), currentPosition.getY(),
+#     #                                           currentPosition.getHeading(), perimeter_x, perimeter_y, endAngle,
+#     #                                           currentPosition.turningRadius)
+#     #     print(len(px))
+#     #     if not self.isHoldFull(self.hold):
+#     #         for i, tmp in enumerate(px):
+#     #             if self.robotRoom.isTileDredgable and not self.robotRoom.isTileCleaned(tmp, py[i]):
+#     #                 self.robotRoom.dredgeTileAtPosition(tmp, py[i])
+#     #                 self.hold += 1
+#     #     # self.path.append([px, py, pangle])
+#     #     newPos = currentPosition.setPosition(px[-1], py[-1], pangle[-1])
+#     #     self.robotPosition = newPos
+#     #     return px, py, pangle
+#
+#     def toDump(self):
+#         dump_x, dump_y = self.robotRoom.dumpLoc
+#         currentPosition = self.getRobotPosition()
+#         endAngle = -(math.atan2(currentPosition.getY() - dump_y, currentPosition.getX() - dump_x))
+#         dx, dy, dangle = Dubins.main(currentPosition.getX(), currentPosition.getY(),
+#                                               currentPosition.getHeading(), dump_x, dump_y, endAngle,
+#                                               currentPosition.turningRadius)
+#         newPos = currentPosition.setPosition(dx[-1], dy[-1], dangle[-1])
+#         self.robotPosition = newPos
+#         self.hold = 0
+#         return dx, dy, dangle
 
 
 def appendToCSV1(pathout, filename ,value):
@@ -677,11 +690,21 @@ def generateBaseline(speed, width, height, currentDist):
     y = []
     h = []
     testRoom = RectangularRoom(width, height)
-    robot = baseline(testRoom, speed, 0, 0, 0)
+    robot = baseline(testRoom, speed, 0, 0)
     # initialize for this trial
-    distance = random.randint(100, 120)
-    tmp_x, tmp_y, tmp_h = robot.firstDredgePoint(testRoom, distance)
+    distance = random.randint(100,200)
 
+    tmp_x, tmp_y, tmp_h = robot.perimeterPoint(testRoom, distance)
+    pathLen += len(tmp_x)
+    x.extend(tmp_x)
+    del tmp_x
+    y.extend(tmp_y)
+    del tmp_y
+    h.extend(tmp_h)
+    del tmp_h
+    gc.collect()
+
+    tmp_x, tmp_y, tmp_h = robot.firstDredgePoint(testRoom, distance)
     for i, tmp in enumerate(tmp_x):
         if (not robot.isHoldFull()) and testRoom.isTileDredgable(tmp, tmp_y[i]):
             testRoom.dredgeTileAtPosition(tmp, tmp_y[i])
@@ -696,6 +719,20 @@ def generateBaseline(speed, width, height, currentDist):
     gc.collect()
 
     tmp_x, tmp_y, tmp_h = robot.secoundDredgePoint(testRoom, distance)
+    for i, tmp in enumerate(tmp_x):
+        if (not robot.isHoldFull()) and testRoom.isTileDredgable(tmp, tmp_y[i]):
+            testRoom.dredgeTileAtPosition(tmp, tmp_y[i])
+            robot.hold += 1
+    pathLen += len(tmp_x)
+    x.extend(tmp_x)
+    del tmp_x
+    y.extend(tmp_y)
+    del tmp_y
+    h.extend(tmp_h)
+    del tmp_h
+    gc.collect()
+
+    tmp_x, tmp_y, tmp_h = robot.perimeterPointReturn(testRoom, distance)
     for i, tmp in enumerate(tmp_x):
         if (not robot.isHoldFull()) and testRoom.isTileDredgable(tmp, tmp_y[i]):
             testRoom.dredgeTileAtPosition(tmp, tmp_y[i])
@@ -728,7 +765,7 @@ def generateBaseline(speed, width, height, currentDist):
     return [x, y, h, testRoom.dredgeMatrix, pathLen, currentDist]
 
 
-def generatePaths(speed, width, height, robot_type, waypointSeperation, nextAngleConstraint, numOfWaypoints, alpha, beta, currentDist):
+def generatePaths(speed, width, height, robot_type, waypointSeperation, numOfWaypoints, cutoff, currentDist, nextAngleConstraint):
 
     # tmpCollection = []
     # tmp_x = []
@@ -739,31 +776,11 @@ def generatePaths(speed, width, height, robot_type, waypointSeperation, nextAngl
     y = []
     h = []
     testRoom = RectangularRoom(width, height)
-    betadis = np.random.beta(alpha,beta)
-    robot = robot_type(testRoom, speed, int(waypointSeperation), nextAngleConstraint,
-            int(numOfWaypoints))
+    robot = robot_type(testRoom, speed, int(waypointSeperation), int(numOfWaypoints))
+    sampled = random.random()
     # initialize for this trial
-    if betadis > 0.5:
-        tmp_x, tmp_y, tmp_h = robot.firstDredgeRoute(testRoom, currentDist)
-    else:
-        tmp_x, tmp_y, tmp_h = robot.firstDredgeRouteEven(testRoom, currentDist)
-    for i, tmp in enumerate(tmp_x):
-        if (not robot.isHoldFull()) and testRoom.isTileDredgable(tmp, tmp_y[i]):
-            testRoom.dredgeTileAtPosition(tmp, tmp_y[i])
-            robot.hold += 1
-    pathLen += len(tmp_x)
-    x.extend(tmp_x)
-    del tmp_x
-    y.extend(tmp_y)
-    del tmp_y
-    h.extend(tmp_h)
-    del tmp_h
-    gc.collect()
-    for _ in range(robot.numOfWaypoints-1):
-        if betadis > 0.5:
-            tmp_x, tmp_y, tmp_h = robot.dredgeRoute(testRoom, currentDist)
-        else:
-            tmp_x, tmp_y, tmp_h = robot.dredgeRouteEven(testRoom, currentDist)
+    if sampled < cutoff:
+        tmp_x, tmp_y, tmp_h = robot.firstDredgeRoute(testRoom)
         for i, tmp in enumerate(tmp_x):
             if (not robot.isHoldFull()) and testRoom.isTileDredgable(tmp, tmp_y[i]):
                 testRoom.dredgeTileAtPosition(tmp, tmp_y[i])
@@ -776,6 +793,48 @@ def generatePaths(speed, width, height, robot_type, waypointSeperation, nextAngl
         h.extend(tmp_h)
         del tmp_h
         gc.collect()
+        for _ in range(robot.numOfWaypoints - 1):
+            tmp_x, tmp_y, tmp_h = robot.dredgeRoute(nextAngleConstraint)
+            for i, tmp in enumerate(tmp_x):
+                if (not robot.isHoldFull()) and testRoom.isTileDredgable(tmp, tmp_y[i]):
+                    testRoom.dredgeTileAtPosition(tmp, tmp_y[i])
+                    robot.hold += 1
+            pathLen += len(tmp_x)
+            x.extend(tmp_x)
+            del tmp_x
+            y.extend(tmp_y)
+            del tmp_y
+            h.extend(tmp_h)
+            del tmp_h
+            gc.collect()
+    else:
+        tmp_x, tmp_y, tmp_h = robot.firstDredgeRouteEven(testRoom, currentDist)
+        for i, tmp in enumerate(tmp_x):
+            if (not robot.isHoldFull()) and testRoom.isTileDredgable(tmp, tmp_y[i]):
+                testRoom.dredgeTileAtPosition(tmp, tmp_y[i])
+                robot.hold += 1
+        pathLen += len(tmp_x)
+        x.extend(tmp_x)
+        del tmp_x
+        y.extend(tmp_y)
+        del tmp_y
+        h.extend(tmp_h)
+        del tmp_h
+        gc.collect()
+        for _ in range(robot.numOfWaypoints-1):
+            tmp_x, tmp_y, tmp_h = robot.dredgeRouteEven(testRoom, currentDist)
+            for i, tmp in enumerate(tmp_x):
+                if (not robot.isHoldFull()) and testRoom.isTileDredgable(tmp, tmp_y[i]):
+                    testRoom.dredgeTileAtPosition(tmp, tmp_y[i])
+                    robot.hold += 1
+            pathLen += len(tmp_x)
+            x.extend(tmp_x)
+            del tmp_x
+            y.extend(tmp_y)
+            del tmp_y
+            h.extend(tmp_h)
+            del tmp_h
+            gc.collect()
 
     tmp_x, tmp_y, tmp_h = robot.toDump()
     if (not robot.isHoldFull()):
@@ -864,8 +923,8 @@ def shiftedColorMap(cmap, start=0, midpoint=0.5, stop=1.0, name='shiftedcmap'):
 
 
 # === Run code
-setSize = 3999
-numOfPaths = 4000
+# setSize = 9
+numOfPaths = 1000
 # (speed, width, height, min_coverage, robot_type, visualize, waypointSeperation, nextAngleConstraint, numOfWaypoints):
 iterator = 0
 # tracemalloc.start()
@@ -877,21 +936,22 @@ Matrices = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD
 bestScores = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\bestScores\\'
 bestMatrices = "C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\bestMatrices\\"
 distributionMat = "C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\EvenDistribution\\"
-optSpace = [Integer(1, 200, name='waypointSeperation'), Integer(1, 50, name='numOfWaypoints'), Real(0.01, 5, name='alpha'), Real(0.01, 5, name='beta')]
+bestCov = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\BestCoveragePercent\\'
+bestOverlap = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\BestOverlap\\'
+bestPathLen = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\BestPathLen\\'
+optSpace = [Integer(1, 200, name='waypointSeperation'), Integer(1, 50, name='numOfWaypoints'), Real(0, 1, name='cutoff'), Integer(0,180,name='angle')]
 @use_named_args(dimensions=optSpace)
-def objective(waypointSeperation, numOfWaypoints, alpha, beta):
+def objective(waypointSeperation, numOfWaypoints, cutoff, angle):
     start_time = time.time()
     width = 600
     print("Running Simulation")
     print(f'waypointSeperation: {waypointSeperation}')
-    print(f'alpa: {alpha}')
     print(f'numOfWaypoints: {numOfWaypoints}')
-    print(f'beta: {beta}')
-    # focPath = 'D:\\Masters\\Thesis\\Git\\optimising_TSHD_path\\Sim\\FamilyofCurves\\'
-    hyp_string = str(waypointSeperation) + '_' + str(numOfWaypoints)+'_'+str(alpha)+'_'+str(beta)
+    print(f'cutoff: {cutoff}'
+          f'\n angle: {angle}')
+    hyp_string = str(waypointSeperation) + '_' + str(numOfWaypoints)+'_'+str(cutoff)+'_'+str(angle)
     try:
         current_dataset = pd.read_csv(optPath + hyp_string, delimiter=',')
-        # print(current_dataset)
         num_entries = len(current_dataset.index)+1
         print(f'num_entries:{num_entries}')
     except FileNotFoundError:
@@ -910,8 +970,8 @@ def objective(waypointSeperation, numOfWaypoints, alpha, beta):
         #         os.system(
         #             'python "C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\Simulator.py"')
         mat = np.load(distributionMat + hyp_string +'.npy')
-        RobotAvg = generatePaths(0.5, width, width, setDistanceWapoint, waypointSeperation, 30,
-            numOfWaypoints, alpha, beta, mat)
+        RobotAvg = generatePaths(0.5, width, width, setDistanceWapoint, waypointSeperation,
+            numOfWaypoints, cutoff, mat, angle)
         # [x, y, h, testRoom.dredgeMatrix, pathLen]
         appendToCSV(focPath, hyp_string, RobotAvg[0], RobotAvg[1], RobotAvg[2])
         np.save(Matrices+hyp_string+'\\'+str(num_entries), RobotAvg[3])
@@ -921,8 +981,6 @@ def objective(waypointSeperation, numOfWaypoints, alpha, beta):
         # snapshot = tracemalloc.take_snapshot()
         # top_stats = snapshot.statistics('lineno')
         gc.collect()
-        if num_entries%100 == 0:
-            print("--- %s loppp seconds ---" % (time.time() - start_time))
         num_entries += 1
 
             # if
@@ -958,17 +1016,19 @@ def objective(waypointSeperation, numOfWaypoints, alpha, beta):
     #     return best
     # except:
     # opt_data = pd.read_csv(optPath+hyp_string, delimiter = ',', names = ['coverage', 'path_length'])
+    print(f'time to generate {numOfPaths-1} paths: {time.time() - start_time}')
     opt_data = pd.read_csv(optPath+hyp_string, delimiter = ',', names = ['path_length'])
     pl_list = opt_data['path_length'].values.tolist()
     print(f'number of paths = {len(pl_list)}. Expected number = {numOfPaths-1}')
     greed_time = time.time()
     subsetSelection = Greedy.Greedy(pl_list, Matrices+hyp_string+'\\', numOfPaths/4, int(width/2), bestMatrices+hyp_string+"\\")
-    print("--- %s Greedy seconds ---" % (time.time() - greed_time))
-    print(f'number of random greedy searches: {numOfPaths/4}')
-    best, indexs, totalCov, totalPathlen = subsetSelection.runGreedy()
-
+    best, indexs, totalCov, totalPathlen, totalOverlap = subsetSelection.runGreedy()
+    print(f'time to do {numOfPaths/4} greedy searches: {time.time() - greed_time}')
     appendToCSV1(bestPath, hyp_string, indexs)
     appendToCSV1(bestScores, hyp_string, [best])
+    appendToCSV1(bestCov, hyp_string, [totalCov])
+    appendToCSV1(bestOverlap, hyp_string, [totalOverlap])
+    appendToCSV1(bestPathLen, hyp_string, [totalPathlen])
     print("--- %s Overall seconds ---" % (time.time() - start_time))
     gc.collect()
     return best
@@ -976,6 +1036,9 @@ def objective(waypointSeperation, numOfWaypoints, alpha, beta):
 def baselineLoop():
     focPath = 'C:\\Users\\denma\\Documents\\Uni\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\baseline\\FamilyofCurves\\'
     bestPath = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\baseline\\BestPath\\'
+    bestCov = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\baseline\\BestCoveragePercent\\'
+    bestOverlap = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\baseline\\BestOverlap\\'
+    bestPathLen = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\baseline\\BestPathLen\\'
     optPath = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\baseline\\opt\\'
     Matrices = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\baseline\\Matrices\\'
     bestScores = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\baseline\\bestScores\\'
@@ -983,174 +1046,194 @@ def baselineLoop():
     distributionMat = "C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\baseline\\EvenDistribution\\"
     plot_path = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\baseline\\plots\\'
     start_time = time.time()
-    np.save(distributionMat + "baseline", np.zeros((300, 300)))
+    # np.save(distributionMat + "baseline", np.zeros((300, 300)))
     width = 600
+    pathLim = 8000
     hyp_string = "baseline"
-    if True:
-        iterator = 8000
-        while iterator < 12000:
-            mat = np.load(distributionMat + hyp_string +'.npy')
-            # speed, width, height, waypointSeperation, nextAngleConstraint, numOfWaypoints, currentDist
-            RobotAvg = generateBaseline(0.5, width, width, mat)
-            appendToCSV(focPath, hyp_string, RobotAvg[0], RobotAvg[1], RobotAvg[2])
-            np.save(Matrices+hyp_string+str(iterator), RobotAvg[3])
-            np.save(distributionMat + hyp_string, RobotAvg[5])
-            # pd.DataFrame(RobotAvg[4]).to_csv(Matrices+hyp_string, mode='a', header=False, index=None)
-            appendToCSV1(optPath, hyp_string, [RobotAvg[4]])
-            # snapshot = tracemalloc.take_snapshot()
-            # top_stats = snapshot.statistics('lineno')
-            gc.collect()
-            iterator+=1
+    saveme = str(pathLim)
+    iterator = 7999
+    # while iterator < pathLim:
+    #     mat = np.load(distributionMat + hyp_string +'.npy')
+    #     # speed, width, height, waypointSeperation, nextAngleConstraint, numOfWaypoints, currentDist
+    #     RobotAvg = generateBaseline(0.5, width, width, mat)
+    #     appendToCSV(focPath, hyp_string, RobotAvg[0], RobotAvg[1], RobotAvg[2])
+    #     np.save(Matrices+hyp_string+str(iterator), RobotAvg[3])
+    #     np.save(distributionMat + hyp_string, RobotAvg[5])
+    #     # pd.DataFrame(RobotAvg[4]).to_csv(Matrices+hyp_string, mode='a', header=False, index=None)
+    #     appendToCSV1(optPath, hyp_string, [RobotAvg[4]])
+    #     # snapshot = tracemalloc.take_snapshot()
+    #     # top_stats = snapshot.statistics('lineno')
+    #     gc.collect()
+    #     iterator+=1
 
-        opt_data = pd.read_csv(optPath+hyp_string, delimiter = ',', names = ['path_length'])
-        pl_list = opt_data['path_length'].values.tolist()
-        print(f'number of paths = {len(pl_list)}. Expected number = {1000}')
-        greed_time = time.time()
-        subsetSelection = Greedy.Greedy(pl_list, Matrices+hyp_string, 2000, int(width/2), bestMatrices+hyp_string+"\\")
-        print("--- %s Greedy seconds ---" % (time.time() - greed_time))
-        print(f'number of random greedy searches: {2000}')
-        best, indexs, totalCov, totalPathlen = subsetSelection.runGreedy()
-        print(f'coverage of solution: {totalCov}'
-              f'pathlen of solution: {totalPathlen}')
-        appendToCSV1(bestPath, hyp_string, indexs)
-        appendToCSV1(bestScores, hyp_string, [best])
-        print("--- %s Overall seconds ---" % (time.time() - start_time))
-        print(f'coverage achieved: {totalCov}'
-              f'total path length: {totalPathlen}')
-        gc.collect()
-    else:
-        best_hyp = "baseline"
-        saveme = "12000"
-        best_inds = []
-        with open(bestPath + best_hyp, mode='r') as csv_file:
-            reader = csv.reader(csv_file, delimiter=',')
-            for i, row in enumerate(reader):
-                best_inds.extend(row)
-                # if i == min_index:
-                #     best_inds = row
-        best_inds = list(map(int, best_inds))
-        full_set = pd.read_csv(focPath + best_hyp, delimiter=',', header=None)
-        # full_set.info()
-        opt_data = pd.read_csv(optPath + best_hyp, delimiter=',', names=['path_length'])
-        opt_data1 = pd.read_csv(optPath + best_hyp, delimiter=',', names=['path_length']).values.astype("int").squeeze()
-        initopt_data = opt_data1.tolist()
-        cov_length = []
-        true_index = []
-        overlapMatrix = np.zeros((300, 300))
-        bestSzie = 0
-        bestind = 0
+    opt_data = pd.read_csv(optPath+hyp_string, delimiter = ',', names = ['path_length'])
+    pl_list = opt_data['path_length'].values.tolist()
+    print(f'number of paths = {len(pl_list)}. Expected number = {pathLim}')
+    print(f'Time to generate {pathLim} paths: {time.time() - start_time}')
+    greed_time = time.time()
+    subsetSelection = Greedy.Greedy(pl_list, Matrices+hyp_string, pathLim/4, int(width/2), bestMatrices+hyp_string+"\\")
+    print(f'number of random greedy searches: {pathLim/4}')
+    best, indexs, totalCov, totalPathlen, totalOverlap = subsetSelection.runGreedy()
+    print("--- %s Greedy seconds ---" % (time.time() - greed_time))
+    appendToCSV1(bestPath, hyp_string+saveme, indexs)
+    appendToCSV1(bestScores, hyp_string+saveme, [best])
+    appendToCSV1(bestCov, hyp_string+saveme, [totalCov])
+    appendToCSV1(bestOverlap, hyp_string+saveme, [totalOverlap])
+    appendToCSV1(bestPathLen, hyp_string+saveme, [totalPathlen])
+    print("--- %s Overall seconds ---" % (time.time() - start_time))
+    print(f'coverage achieved: {totalCov}'
+          f' \n total path length: {totalPathlen}')
+    gc.collect()
+    best_hyp = "baseline"
+
+    best_inds = []
+    with open(bestPath + best_hyp+saveme, mode='r') as csv_file:
+        reader = csv.reader(csv_file, delimiter=',')
+        for i, row in enumerate(reader):
+            best_inds.extend(row)
+            # if i == min_index:
+            #     best_inds = row
+    best_inds = list(map(int, best_inds))
+    full_set = pd.read_csv(focPath + best_hyp, delimiter=',', header=None)
+    # full_set.info()
+    opt_data = pd.read_csv(optPath + best_hyp, delimiter=',', names=['path_length'])
+    opt_data1 = pd.read_csv(optPath + best_hyp, delimiter=',', names=['path_length']).values.astype("int").squeeze()
+    initopt_data = opt_data1.tolist()
+    cov_length = []
+    true_index = []
+    overlapMatrix = np.zeros((300, 300))
+    bestSzie = 0
+    bestind = 0
+
+    x = full_set.iloc[:, 0]
+    # y.append(full_set.iloc[236:236+237-5,1])
+    y = full_set.iloc[:, 1]
+    # x.append(full_set.iloc[:, 0])
+    # y.append(full_set.iloc[:, 1])
+    plt.plot(x, y, label=best_hyp)
+    # plt.legend()
+    plt.grid(True)
+    plt.xlabel("x co-ordinates")
+    plt.ylabel("y co-ordinates")
+    plt.xlim([-100, 800])
+    plt.ylim([-100, 800])
+    plt.viridis()
+    # plt.axis("equal")
+    plt.title("All path from baseline")
+    plt.savefig(plot_path + 'allpaths' + saveme)
+    plt.show()
 
 
-        shortest = int(opt_data['path_length'].idxmin())
-        id = opt_data['path_length'].iloc[shortest]
-        id1 = opt_data['path_length'].iloc[0:shortest]
-        id2 = int(id1.sum())
-        x = full_set.iloc[id2:id2 + id, 0]
-        # y.append(full_set.iloc[236:236+237-5,1])
-        y = full_set.iloc[id2:id2 + id, 1]
-        # x.append(full_set.iloc[:, 0])
-        # y.append(full_set.iloc[:, 1])
-        plt.plot(x, y, label=best_hyp)
-        # plt.legend()
-        plt.grid(True)
-        plt.xlabel("x co-ordinates")
-        plt.ylabel("y co-ordinates")
-        plt.xlim([-100, 800])
-        plt.ylim([-100, 800])
-        plt.viridis()
-        # plt.axis("equal")
-        plt.title("Shortest path from hyp_parameters: 18_30_2.317_0.015")
-        plt.savefig(plot_path + 'shortpaths' + saveme)
-        plt.show()
+    shortest = int(opt_data['path_length'].idxmin())
+    id = opt_data['path_length'].iloc[shortest]
+    id1 = opt_data['path_length'].iloc[0:shortest]
+    id2 = int(id1.sum())
+    x = full_set.iloc[id2:id2 + id, 0]
+    # y.append(full_set.iloc[236:236+237-5,1])
+    y = full_set.iloc[id2:id2 + id, 1]
+    # x.append(full_set.iloc[:, 0])
+    # y.append(full_set.iloc[:, 1])
+    plt.plot(x, y, label=best_hyp)
+    # plt.legend()
+    plt.grid(True)
+    plt.xlabel("x co-ordinates")
+    plt.ylabel("y co-ordinates")
+    plt.xlim([-100, 800])
+    plt.ylim([-100, 800])
+    plt.viridis()
+    # plt.axis("equal")
+    plt.title("Shortest path from baseline")
+    plt.savefig(plot_path + 'shortpaths' + saveme)
+    plt.show()
 
-        shortest = int(opt_data['path_length'].idxmax())
-        id = opt_data['path_length'].iloc[shortest]
-        id1 = opt_data['path_length'].iloc[0:shortest]
-        id2 = int(id1.sum())
-        x = full_set.iloc[id2:id2 + id, 0]
-        # y.append(full_set.iloc[236:236+237-5,1])
-        y = full_set.iloc[id2:id2 + id, 1]
-        # x.append(full_set.iloc[:, 0])
-        # y.append(full_set.iloc[:, 1])
-        plt.plot(x, y, label=best_hyp)
-        # plt.legend()
-        plt.grid(True)
-        plt.xlabel("x co-ordinates")
-        plt.ylabel("y co-ordinates")
-        plt.xlim([-100, 800])
-        plt.ylim([-100, 800])
-        plt.viridis()
-        # plt.axis("equal")
-        plt.title("Longest path from hyp_parameters: 18_30_2.317_0.015")
-        plt.savefig(plot_path + 'longpaths' + saveme)
-        plt.show()
+    shortest = int(opt_data['path_length'].idxmax())
+    id = opt_data['path_length'].iloc[shortest]
+    id1 = opt_data['path_length'].iloc[0:shortest]
+    id2 = int(id1.sum())
+    x = full_set.iloc[id2:id2 + id, 0]
+    # y.append(full_set.iloc[236:236+237-5,1])
+    y = full_set.iloc[id2:id2 + id, 1]
+    # x.append(full_set.iloc[:, 0])
+    # y.append(full_set.iloc[:, 1])
+    plt.plot(x, y, label=best_hyp)
+    # plt.legend()
+    plt.grid(True)
+    plt.xlabel("x co-ordinates")
+    plt.ylabel("y co-ordinates")
+    plt.xlim([-100, 800])
+    plt.ylim([-100, 800])
+    plt.viridis()
+    # plt.axis("equal")
+    plt.title("Longest path from baseline")
+    plt.savefig(plot_path + 'longpaths' + saveme)
+    plt.show()
 
-        for ind, row in enumerate(best_inds):
-            tmpMatrix = np.load(Matrices + best_hyp + str(row) + '.npy')
-            overlapMatrix = np.add(overlapMatrix, tmpMatrix)
-            boolMap = np.where(tmpMatrix > 0)
-            size = tmpMatrix[boolMap].size
-            if size > bestSzie:
-                bestSzie = size
-                bestind = row
-        boolMap = np.where(overlapMatrix > 0)
-        cover = overlapMatrix[boolMap].size
+    for ind, row in enumerate(best_inds):
+        tmpMatrix = np.load(Matrices + best_hyp + str(row) + '.npy')
+        overlapMatrix = np.add(overlapMatrix, tmpMatrix)
+        boolMap = np.where(tmpMatrix > 0)
+        size = tmpMatrix[boolMap].size
+        if size > bestSzie:
+            bestSzie = size
+            bestind = row
+    boolMap = np.where(overlapMatrix > 0)
+    cover = overlapMatrix[boolMap].size
 
-        percent_covered = (cover / (300 * 300)) * 100
-        print(f'covered percentage: {percent_covered}')
-        id1 = opt_data['path_length'].iloc[0:bestind]
-        bes = int(opt_data['path_length'].iloc[bestind])
-        id2 = int(id1.sum())
-        x = full_set.iloc[id2:id2 + bes, 0]
-        # y.append(full_set.iloc[236:236+237-5,1])
-        y = full_set.iloc[id2:id2 + bes, 1]
-        # x.append(full_set.iloc[:, 0])
-        # y.append(full_set.iloc[:, 1])
-        plt.plot(x, y, label=best_hyp)
-        # plt.legend()
-        plt.grid(True)
-        plt.xlabel("x co-ordinates")
-        plt.ylabel("y co-ordinates")
-        plt.xlim([-100, 800])
-        plt.ylim([-100, 800])
-        plt.viridis()
-        # plt.axis("equal")
-        plt.title("Path with most area covered from hyp_parameters: 18_30_2.317_0.015")
-        plt.savefig(plot_path + 'mostcovpaths' + saveme)
-        plt.show()
+    percent_covered = (cover / (300 * 300)) * 100
+    print(f'covered percentage: {percent_covered}')
+    id1 = opt_data['path_length'].iloc[0:bestind]
+    bes = int(opt_data['path_length'].iloc[bestind])
+    id2 = int(id1.sum())
+    x = full_set.iloc[id2:id2 + bes, 0]
+    # y.append(full_set.iloc[236:236+237-5,1])
+    y = full_set.iloc[id2:id2 + bes, 1]
+    # x.append(full_set.iloc[:, 0])
+    # y.append(full_set.iloc[:, 1])
+    plt.plot(x, y, label=best_hyp)
+    # plt.legend()
+    plt.grid(True)
+    plt.xlabel("x co-ordinates")
+    plt.ylabel("y co-ordinates")
+    plt.xlim([-100, 800])
+    plt.ylim([-100, 800])
+    plt.viridis()
+    # plt.axis("equal")
+    plt.title("Path with most area covered from baseline")
+    plt.savefig(plot_path + 'mostcovpaths' + saveme)
+    plt.show()
 
-        plt.imshow(overlapMatrix)
-        plt.colorbar()
-        plt.title("Dredged Locations")
-        plt.savefig(plot_path + 'dredged_locations' + saveme)
-        plt.show()
-        orig_cmap = matplotlib.cm.viridis
-        shifted_cmap = shiftedColorMap(orig_cmap, midpoint=0, name='shifted')
+    plt.imshow(overlapMatrix)
+    plt.colorbar()
+    plt.title("Dredged Locations from baseline")
+    plt.savefig(plot_path + 'dredged_locations' + saveme)
+    plt.show()
+    orig_cmap = matplotlib.cm.viridis
+    shifted_cmap = shiftedColorMap(orig_cmap, midpoint=0, name='shifted')
 
-        plt.imshow(overlapMatrix, interpolation=None, cmap=shifted_cmap)
-        plt.colorbar()
-        plt.title("Dredged Locations shifted colourmap")
-        plt.savefig(plot_path + 'dredged_locations_shifted' + saveme)
-        plt.show()
-        tally = 0
-        start_time = time.time()
-        for z in np.nditer(overlapMatrix):
-            if z > 0:
-                tally += 1
-        print("--- %s seconds ---" % (time.time() - start_time))
-        print(tally)
-        start_time = time.time()
-        boolMap = np.where(overlapMatrix > 0)
-        size = overlapMatrix[boolMap].size
-        print("--- %s seconds ---" % (time.time() - start_time))
-        print(f'size: {size}')
+    plt.imshow(overlapMatrix, interpolation=None, cmap=shifted_cmap)
+    plt.colorbar()
+    plt.title("Dredged Locations shifted colourmap from baseline")
+    plt.savefig(plot_path + 'dredged_locations_shifted' + saveme)
+    plt.show()
+    tally = 0
+    start_time = time.time()
+    for z in np.nditer(overlapMatrix):
+        if z > 0:
+            tally += 1
+    print("--- %s seconds ---" % (time.time() - start_time))
+    print(tally)
+    start_time = time.time()
+    boolMap = np.where(overlapMatrix > 0)
+    size = overlapMatrix[boolMap].size
+    print("--- %s seconds ---" % (time.time() - start_time))
+    print(f'size: {size}')
 
 
   # keyword arguments will be passed to `skopt.dump`
-if True:
+if False:
     baselineLoop()
 else:
-    if False:
+    if True:
         try:
             res = load('C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\check\\checkpoint.pkl')
             checkpoint_saver = CheckpointSaver(
@@ -1165,7 +1248,7 @@ else:
                         acq_func="gp_hedge",  # the acquisition function
                         n_calls=50,  # the number of evaluations of f
                         callback=[checkpoint_saver],
-                        n_random_starts=10,
+                        n_random_starts=5,
                         random_state=1234,  # the random seed
                         verbose=True,
                         n_jobs=-1)
@@ -1179,7 +1262,7 @@ else:
                               acq_func="gp_hedge",  # the acquisition function
                               n_calls=50,  # the number of evaluations of f
                               callback=[checkpoint_saver],
-                              n_random_starts=10,  # the number of random initialization points
+                              n_random_starts=5,  # the number of random initialization points
                               noise=0.01,  # the noise level (optional)
                               random_state=1234,  # the random seed
                               verbose=True,
@@ -1191,14 +1274,14 @@ else:
         # optPath = 'D:\\Thesis_results\\opt\\'
         # Matrices = 'D:\\Thesis_results\\Matrices\\'
         # bestScores = 'D:\\Thesis_results\\bestScores\\'
-        bestMatrices = "C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\bestMatrices\\"
-        distributionMat = "C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\EvenDistribution\\"
+
         plot_path = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\plots\\'
-        # # plot_path = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\old\\2000_noMat_100bayes_greedyWdel\\'
+
         res = load('C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\check\\checkpoint.pkl')
         # res = load('D:\\Thesis_results\\check\\checkpoint.pkl')
         # plot_path = 'D:\\Thesis_results\\plots\\'
         best_hyp = str(res.x[0]) + '_' + str(res.x[1]) + '_' + str(res.x[2]) + '_' +str(res.x[3])
+        # best_hyp = str(hyp[0]) + '_' + str(hyp[1]) + '_' + str(hyp[2]) + '_' +str(hyp[3])
         saveme = best_hyp + '_'+ str(numOfPaths) + '.png'
         plot_convergence(res)
         plt.savefig(plot_path+'convergence'+saveme)
@@ -1209,10 +1292,10 @@ else:
         print(f'set1:\n {res.func_vals}')
         _ = plot_evaluations(res)
         plt.show()
-        plt.savefig(plot_path + 'evalutions'+ '.png')
+        plt.savefig(plot_path + 'evalutions'+'.jpeg')
         _ = plot_objective(res, n_samples=50)
         plt.show()
-        plt.savefig(plot_path + 'objectives'+ '.png')
+        plt.savefig(plot_path + 'objectives'+ '.jpeg')
 
 
         # best_score = pd.read_csv(bestScores+best_hyp, delimiter=',', header=None)

@@ -2,9 +2,6 @@
 Simulated Annealing Class
 """
 import random
-import time
-import os
-import pandas as pd
 import numpy as np
 class Greedy:
     def __init__(self, pathLen, path, iterationLimit, width, bestMatrices):
@@ -87,77 +84,64 @@ class Greedy:
     def runGreedy(self):
         pathLen, coverage, trueIndexs, noSolution, overlapMatrix, overlap = self.randomSolution()
         # pathLen, coverage, trueIndexs, noSolution = self.randomSolution()
+        boolMap = np.where(overlapMatrix > 0)
+        cover = overlapMatrix[boolMap].size
+
+        percent_covered = (cover / (300 * 300)) * 100
         if noSolution == True:
             # bestScore, bisInd, bisCov, bisPath
-            boolMap = np.where(overlapMatrix > 0)
-            cover = overlapMatrix[boolMap].size
-
-            percent_covered = (cover / (300 * 300)) * 100
-            return 900000000, trueIndexs, percent_covered, pathLen
+            return 900000000, trueIndexs, percent_covered, pathLen, overlap
         # bisMatrix = overlapMatrix
         bestScore = pathLen - coverage + overlap
         # bestScore = pathLen - (coverage*100) + overlap
         print(f' '
-              f' \n Initial coverage: {(coverage/(self.width*self.width))*100}'
+              f' \n Initial coverage percentage: {percent_covered}'
               f' \n Initial coverage: {coverage}'
               f' \n Initial pathlen: {pathLen}'
               f' \n Initial Overall Score: {bestScore}'
+              f' \n Initial Overlap: {overlap}'
               f'')
         while self.iteration < self.iterationLimit:
             if self.iteration %100 ==0:
                 print(f'Starting Greedy iteration {self.iteration} of {self.iterationLimit}')
             ind = random.randint(0, self.dataDim)
-            k=0
+            k = 0
             while ind in trueIndexs:
-                k+=1
+                k += 1
                 ind = random.randint(0, self.dataDim)
                 if k >= self.dataDim*3:
                     print("stopping early bag too small??????????????????????????????????????????????????????????????")
-                    print(bisInd)
-                    print(len(bisInd))
-                    print(self.dataDim)
-
-                    return bestScore, bisInd
+                    return bestScore, trueIndexs, coverage, pathLen, overlap
             possibleOverlap = np.load(self.path+str(ind)+'.npy')
             boolMap = np.where(possibleOverlap > 0)
             size = possibleOverlap[boolMap].size
             reached = False
+            reached2nd = False
             for i, j in enumerate(trueIndexs):
+                tmpOL = np.load(self.path + str(j) + '.npy')
+                tmpOlMatrix = np.subtract(overlapMatrix, tmpOL)
+                tmpOlMatrix = np.add(tmpOlMatrix, possibleOverlap)
+                tmpCovMap = np.where(tmpOlMatrix > 0)
+                tmpCovSize = tmpOlMatrix[tmpCovMap].size
+                tmpCovPerc = (tmpCovSize / (300 * 300)) * 100
+                if tmpCovPerc < 79:
+                    continue
                 tmpList = trueIndexs.copy()
                 tmpCoverage = coverage
                 tmpPathLen = pathLen
                 tmpList[i] = ind    #update temp list with new index
-                tmpOL = np.load(self.path+str(j)+'.npy')
 
                 tmpBoolMap = np.where(tmpOL > 0)
                 tmpSize = tmpOL[tmpBoolMap].size
                 tmpCoverage -= tmpSize    #remove coverage of path we're replacing
                 tmpPathLen -= self.pathLen[j]
-                tmpOlMatrix = np.subtract(overlapMatrix, tmpOL)
-
-                secBoolMap = np.where(tmpOlMatrix > 1)
-                overlap = np.sum(tmpOlMatrix[secBoolMap])
-
-                coverMap = np.where(tmpOlMatrix > 0)
-
-                cover = tmpOlMatrix[coverMap].size
-                percent_covered = (cover / (300 * 300)) * 100
-
-                if percent_covered >= self.covpercent:
-                    current = tmpPathLen - tmpCoverage + overlap
-                    bestScore = current
-                    bisInd = tmpList.copy()
-                    bisCov = tmpCoverage
-                    bisPath = tmpPathLen
-                    bisMatrix = tmpOlMatrix.copy()
-                    break
                 tmpCoverage += size
                 tmpPathLen += self.pathLen[ind]
                 tmpOlMatrix = np.add(tmpOlMatrix, possibleOverlap)
                 secBoolMap = np.where(tmpOlMatrix > 1)
-                overlap = np.sum(tmpOlMatrix[secBoolMap])
+                tmpOverlap = np.sum(tmpOlMatrix[secBoolMap])
 
-                current = tmpPathLen - tmpCoverage + overlap
+                current = tmpPathLen - tmpCoverage + tmpOverlap
 
                 if current < bestScore:
                     reached = True
@@ -165,19 +149,66 @@ class Greedy:
                     bisInd = tmpList.copy()
                     bisCov = tmpCoverage
                     bisPath = tmpPathLen
+                    bisOverlap = tmpOverlap
                     bisMatrix = tmpOlMatrix.copy()
             if reached == True:
+                coverMap = np.where(bisMatrix > 0)
+                cover = bisMatrix[coverMap].size
+                percent_covered = (cover / (300 * 300)) * 100
+                while percent_covered > 80:
+                    for ite, value in enumerate(bisInd):
+
+                        tmpBisRM = np.load(self.path + str(value) + '.npy')
+                        tmpBisOlMatrix = np.subtract(bisMatrix, tmpBisRM)
+                        delBisCoverMap = np.where(tmpBisOlMatrix > 0)
+                        delBisCover = tmpBisOlMatrix[delBisCoverMap].size
+                        delBispercent_covered = (delBisCover / (300 * 300)) * 100
+                        if delBispercent_covered < 79:
+                            continue
+                        tmpBisInd = bisInd.copy()
+                        tmpBisCov = bisCov
+                        tmpBisPathLen = bisPath
+                        tmpBisBoolMap = np.where(tmpBisRM > 0)
+                        tmpBisSize = tmpBisRM[tmpBisBoolMap].size
+                        tmpBisCov -= tmpBisSize  # remove coverage of path we're replacing
+                        tmpBisPathLen -= self.pathLen[value]
+                        tmpBisOLboolmap = np.where(tmpBisOlMatrix > 1)
+                        tmpBisOverlap = np.sum(tmpBisOlMatrix[tmpBisOLboolmap])
+                        del tmpBisInd[ite]
+                        current = tmpBisPathLen - tmpBisCov + tmpBisOverlap
+                        if current < bestScore:
+                            reached2nd = True
+                            bestScore = current
+                            delBisInd = tmpBisInd.copy()
+                            delBisCov = tmpBisCov
+                            delBisPath = tmpBisPathLen
+                            delBisMatrix = tmpBisOlMatrix.copy()
+                            delBisOverlap = tmpBisOverlap
+                            percent_covered = delBispercent_covered
+
+            if reached2nd == True:
+                trueIndexs = delBisInd.copy
+                coverage = delBisCov
+                pathLen = delBisPath
+                overlap = delBisOverlap
+                overlapMatrix = delBisMatrix.copy
+            elif reached == True:
                 pathLen = bisPath
                 coverage = bisCov
                 trueIndexs = bisInd.copy()
+                overlap = bisOverlap
                 overlapMatrix = bisMatrix.copy()
             self.iteration += 1
+        finalBoolMap = np.where(overlapMatrix > 0)
+
+        finalCover = overlapMatrix[finalBoolMap].size
+
+        percent_covered = (finalCover / (300 * 300)) * 100
         print(f''
-              f' \n END coverage: {(coverage/(self.width*self.width))*100}'
               f' \n END coverage: {coverage}'
               f' \n END pathlen: {pathLen}'
               f' \n END Overall Score: {bestScore}'
               f'')
             # pathLen, coverage, overlap, trueIndexs, overlapMatrix = bisPath, bisCov, bisOL, bisInd, bisMatrix
-        return bestScore, bisInd, bisCov, bisPath
+        return bestScore, bisInd, percent_covered, bisPath, overlap
 
