@@ -90,9 +90,9 @@ class Greedy:
         percent_covered = (cover / (300 * 300)) * 100
         if noSolution == True:
             # bestScore, bisInd, bisCov, bisPath
-            return 900000000, trueIndexs, percent_covered, pathLen, overlap
+            return 900000000, trueIndexs, percent_covered, pathLen, overlap, coverage
         # bisMatrix = overlapMatrix
-        bestScore = pathLen - coverage + overlap
+        bestScore = (pathLen - coverage) + overlap
         # bestScore = pathLen - (coverage*100) + overlap
         print(f' '
               f' \n Initial coverage percentage: {percent_covered}'
@@ -187,11 +187,11 @@ class Greedy:
                             percent_covered = delBispercent_covered
 
             if reached2nd == True:
-                trueIndexs = delBisInd.copy
+                trueIndexs = delBisInd.copy()
                 coverage = delBisCov
                 pathLen = delBisPath
                 overlap = delBisOverlap
-                overlapMatrix = delBisMatrix.copy
+                overlapMatrix = delBisMatrix.copy()
             elif reached == True:
                 pathLen = bisPath
                 coverage = bisCov
@@ -210,5 +210,5 @@ class Greedy:
               f' \n END Overall Score: {bestScore}'
               f'')
             # pathLen, coverage, overlap, trueIndexs, overlapMatrix = bisPath, bisCov, bisOL, bisInd, bisMatrix
-        return bestScore, bisInd, percent_covered, bisPath, overlap
+        return bestScore, bisInd, percent_covered, bisPath, overlap, coverage
 

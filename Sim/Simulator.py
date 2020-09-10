@@ -239,21 +239,18 @@ class RectangularRoom(object):
 
     def getinformedPosition(self, prevDredged, pos):
         tmp = np.where(prevDredged == np.amin(prevDredged))
-        try:
-            coord = [co for co in zip(tmp[0], tmp[1])]
-            ind = random.randint(0, len(coord) - 1)
-            new_angle = math.atan2(coord[ind][1] - pos.getY(), coord[ind][0] - pos.getX())
-            return Position((coord[ind][0] + 300), (300 + coord[ind][1]), new_angle)
-        except IndexError:
-            print(f'tmp values: {tmp}')
-            print(f'tmp size: {tmp.size}')
-            print(f'tmp chosen y: {tmp[0][1]} and x:{tmp[0][0]}')
-            if random.random > 0.5:
-                new_angle = math.atan2(tmp[0][1] - pos.getY(), tmp[0][0] - pos.getX())
-                return Position((tmp[0][0] + 300), (300 + tmp[0][1]), new_angle)
-            else:
-                new_angle = math.atan2(tmp[-1][1] - pos.getY(), tmp[-1][0] - pos.getX())
-                return Position((tmp[-1][0] + 300), (300 + tmp[-1][1]), new_angle)
+        coord = [co for co in zip(tmp[0], tmp[1])]
+        ind = random.randint(0, len(coord) - 1)
+        new_angle = math.atan2(coord[ind][1] - pos.getY(), coord[ind][0] - pos.getX())
+        return Position((coord[ind][0] + 300), (300 + coord[ind][1]), new_angle)
+        # except IndexError:
+        #     print(np.amin(prevDredged))
+        #     ind = np.unravel_index(np.argmin(prevDredged, axis=None), prevDredged.shape)
+        #     print(f'index chosen to visit '
+        #           f'!! -- {ind} -- !! ')
+        #     new_angle = math.atan2(ind[1] - pos.getY(), ind[0] - pos.getX())
+        #     return Position((ind[0] + 300), (300 + ind[1]), new_angle)
+
 
 
     def getRandomPosition(self):
@@ -418,8 +415,9 @@ class baseline(BaseShip):
     def perimeterPoint(self, room, dis):
         currentPosition = Position(room.dumpLoc[0], room.dumpLoc[1], math.radians(90))
         perimeterPos = room.getPerimeterPoint(dis)
+        endAngle = math.atan2(perimeterPos.getY() - currentPosition.getY(), perimeterPos.getX() - currentPosition.getX())
         dx, dy, dangle = Dubins.main(currentPosition.getX(), currentPosition.getY(),
-                                              currentPosition.getHeading(), perimeterPos.getX(),
+                                              endAngle, perimeterPos.getX(),
                                               perimeterPos.getY(), perimeterPos.getHeading(),
                                               currentPosition.turningRadius)
         gc.collect()
@@ -524,7 +522,7 @@ class setDistanceWapoint(BaseShip):
         constrainedPos = room.getinformedPosition(recuringMatrix, currentPosition)
         while int(currentPosition.getX()) == int(constrainedPos.getX()) and \
                 int(currentPosition.getY()) == int(constrainedPos.getY()):
-            constrainedPos = room.getinformedPosition(currentPosition, self.waypointSeperation)
+            constrainedPos = room.getinformedPosition(recuringMatrix, currentPosition)
         dx, dy, dangle = Dubins.main(currentPosition.getX(), currentPosition.getY(),
                                               currentPosition.getHeading(), constrainedPos.getX(),
                                               constrainedPos.getY(), constrainedPos.getHeading(),
@@ -939,6 +937,7 @@ distributionMat = "C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimisi
 bestCov = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\BestCoveragePercent\\'
 bestOverlap = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\BestOverlap\\'
 bestPathLen = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\BestPathLen\\'
+bestCovScore = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\BestCovScore\\'
 optSpace = [Integer(1, 200, name='waypointSeperation'), Integer(1, 50, name='numOfWaypoints'), Real(0, 1, name='cutoff'), Integer(0,180,name='angle')]
 @use_named_args(dimensions=optSpace)
 def objective(waypointSeperation, numOfWaypoints, cutoff, angle):
@@ -1022,13 +1021,14 @@ def objective(waypointSeperation, numOfWaypoints, cutoff, angle):
     print(f'number of paths = {len(pl_list)}. Expected number = {numOfPaths-1}')
     greed_time = time.time()
     subsetSelection = Greedy.Greedy(pl_list, Matrices+hyp_string+'\\', numOfPaths/4, int(width/2), bestMatrices+hyp_string+"\\")
-    best, indexs, totalCov, totalPathlen, totalOverlap = subsetSelection.runGreedy()
+    best, indexs, totalCov, totalPathlen, totalOverlap, totalCovScore = subsetSelection.runGreedy()
     print(f'time to do {numOfPaths/4} greedy searches: {time.time() - greed_time}')
     appendToCSV1(bestPath, hyp_string, indexs)
     appendToCSV1(bestScores, hyp_string, [best])
     appendToCSV1(bestCov, hyp_string, [totalCov])
     appendToCSV1(bestOverlap, hyp_string, [totalOverlap])
     appendToCSV1(bestPathLen, hyp_string, [totalPathlen])
+    appendToCSV1(bestCovScore, hyp_string, [totalCovScore])
     print("--- %s Overall seconds ---" % (time.time() - start_time))
     gc.collect()
     return best
@@ -1039,6 +1039,7 @@ def baselineLoop():
     bestCov = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\baseline\\BestCoveragePercent\\'
     bestOverlap = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\baseline\\BestOverlap\\'
     bestPathLen = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\baseline\\BestPathLen\\'
+    bestCovScore = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\baseline\\BestCovScore\\'
     optPath = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\baseline\\opt\\'
     Matrices = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\baseline\\Matrices\\'
     bestScores = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\baseline\\bestScores\\'
@@ -1046,25 +1047,25 @@ def baselineLoop():
     distributionMat = "C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\baseline\\EvenDistribution\\"
     plot_path = 'C:\\Users\\denma\\Documents\\Uni\\Thesis\\Simulator\\optimising_TSHD_path\\Sim\\baseline\\plots\\'
     start_time = time.time()
-    # np.save(distributionMat + "baseline", np.zeros((300, 300)))
+    np.save(distributionMat + "baseline", np.zeros((300, 300)))
     width = 600
-    pathLim = 8000
+    pathLim = 4                                                                                                                                                                                                 000
     hyp_string = "baseline"
     saveme = str(pathLim)
-    iterator = 7999
-    # while iterator < pathLim:
-    #     mat = np.load(distributionMat + hyp_string +'.npy')
-    #     # speed, width, height, waypointSeperation, nextAngleConstraint, numOfWaypoints, currentDist
-    #     RobotAvg = generateBaseline(0.5, width, width, mat)
-    #     appendToCSV(focPath, hyp_string, RobotAvg[0], RobotAvg[1], RobotAvg[2])
-    #     np.save(Matrices+hyp_string+str(iterator), RobotAvg[3])
-    #     np.save(distributionMat + hyp_string, RobotAvg[5])
-    #     # pd.DataFrame(RobotAvg[4]).to_csv(Matrices+hyp_string, mode='a', header=False, index=None)
-    #     appendToCSV1(optPath, hyp_string, [RobotAvg[4]])
-    #     # snapshot = tracemalloc.take_snapshot()
-    #     # top_stats = snapshot.statistics('lineno')
-    #     gc.collect()
-    #     iterator+=1
+    iterator = 2000
+    while iterator < pathLim:
+        mat = np.load(distributionMat + hyp_string +'.npy')
+        # speed, width, height, waypointSeperation, nextAngleConstraint, numOfWaypoints, currentDist
+        RobotAvg = generateBaseline(0.5, width, width, mat)
+        appendToCSV(focPath, hyp_string, RobotAvg[0], RobotAvg[1], RobotAvg[2])
+        np.save(Matrices+hyp_string+str(iterator), RobotAvg[3])
+        np.save(distributionMat + hyp_string, RobotAvg[5])
+        # pd.DataFrame(RobotAvg[4]).to_csv(Matrices+hyp_string, mode='a', header=False, index=None)
+        appendToCSV1(optPath, hyp_string, [RobotAvg[4]])
+        # snapshot = tracemalloc.take_snapshot()
+        # top_stats = snapshot.statistics('lineno')
+        gc.collect()
+        iterator+=1
 
     opt_data = pd.read_csv(optPath+hyp_string, delimiter = ',', names = ['path_length'])
     pl_list = opt_data['path_length'].values.tolist()
@@ -1073,13 +1074,14 @@ def baselineLoop():
     greed_time = time.time()
     subsetSelection = Greedy.Greedy(pl_list, Matrices+hyp_string, pathLim/4, int(width/2), bestMatrices+hyp_string+"\\")
     print(f'number of random greedy searches: {pathLim/4}')
-    best, indexs, totalCov, totalPathlen, totalOverlap = subsetSelection.runGreedy()
+    best, indexs, totalCov, totalPathlen, totalOverlap, totalCovScore = subsetSelection.runGreedy()
     print("--- %s Greedy seconds ---" % (time.time() - greed_time))
     appendToCSV1(bestPath, hyp_string+saveme, indexs)
     appendToCSV1(bestScores, hyp_string+saveme, [best])
     appendToCSV1(bestCov, hyp_string+saveme, [totalCov])
     appendToCSV1(bestOverlap, hyp_string+saveme, [totalOverlap])
     appendToCSV1(bestPathLen, hyp_string+saveme, [totalPathlen])
+    appendToCSV1(bestCovScore, hyp_string+saveme, [totalCovScore])
     print("--- %s Overall seconds ---" % (time.time() - start_time))
     print(f'coverage achieved: {totalCov}'
           f' \n total path length: {totalPathlen}')
@@ -1230,7 +1232,7 @@ def baselineLoop():
 
 
   # keyword arguments will be passed to `skopt.dump`
-if False:
+if True:
     baselineLoop()
 else:
     if True:
